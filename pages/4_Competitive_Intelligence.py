@@ -75,7 +75,7 @@ def show():
         .threat-card .comp-score { font-weight: 800; font-size: 22px; color: #0077AD; margin: 4px 0; }
         .threat-card .comp-desc { font-size: 13px; color: #475569; line-height: 1.5; margin-top: 8px; }
 
-        /* UNIFORM & STANDARDIZED SWOT CARDS */
+        /* STANDARDIZED SWOT CARDS */
         .swot-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -268,7 +268,7 @@ def show():
         """
     <div class="page-header">
         <h1> Competitive Intelligence</h1>
-        <p>Market positioning, competitor usage rates, and strategic threat analysis</p>
+        <p>Market share, perceived quality vs. pricing positioning, and strategic threat analysis</p>
     </div>
     """,
         unsafe_allow_html=True,
@@ -325,7 +325,7 @@ def show():
             <div style="font-size: 12px; color: #64748b;">Market Usage Rate</div>
             <div style="margin-top: 12px; padding: 10px; background: #E8F4F8; border-radius: 8px;">
                 <span style="font-size: 12px; color: #003765;">
-                     <strong>Leadership Margin:</strong> SYNLAB leads by <strong>+{gap:.1f}%</strong> over {second['name']} ({second['usage']}%).
+                    <strong>Leadership Margin:</strong> SYNLAB leads by <strong>+{gap:.1f}%</strong> over {second['name']} ({second['usage']}%).
                 </span>
             </div>
         </div>
@@ -335,7 +335,7 @@ def show():
 
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # ===== CORRECTION 1: SCATTER MATRIX WITH ARROWS AWAY FROM CLUSTERED DOTS =====
+    # ===== AWARENESS VS USAGE MATRIX WITH ARROWS =====
     st.markdown("---")
     st.markdown(
         '<h4 style="color: #003765; margin: 0 0 12px 0;"> Competitive Positioning Matrix</h4>',
@@ -346,11 +346,10 @@ def show():
 
     with col1:
         st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-        st.subheader("Awareness vs. Usage Matrix (Clustered Callouts)")
+        st.subheader("Awareness vs. Usage Scatter Matrix (Clustered Callouts)")
 
         fig = go.Figure()
 
-        # Custom offsets for text annotations away from clustered dots
         label_offsets = {
             "SYNLAB Nigeria": {"ax": 0, "ay": -40},
             "Lifebridge Medical": {"ax": 45, "ay": -25},
@@ -365,7 +364,6 @@ def show():
             "AMCE": {"ax": 40, "ay": 40},
         }
 
-        # Plot Scatter Points
         for _, row in comp_df.iterrows():
             color = "#003765" if row["is_synlab"] else "#0077AD"
             size = 20 if row["is_synlab"] else 12
@@ -391,7 +389,6 @@ def show():
                 row["name"], {"ax": 20, "ay": -20}
             )
 
-            # Add arrow annotations pointing away from clustered dots
             fig.add_annotation(
                 x=row["awareness"],
                 y=row["usage"],
@@ -498,10 +495,93 @@ def show():
 
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # ===== CORRECTION 2: TOP THREE THREATS CLEARLY IDENTIFIED & EXPLAINED =====
+    # =====  PERCEIVED QUALITY VS. PRICING =====
     st.markdown("---")
     st.markdown(
-        '<h4 style="color: #003765; margin: 0 0 12px 0;">🚨 Top Three Competitive Threats & Deep-Dive Analysis</h4>',
+        '<h4 style="color: #003765; margin: 0 0 12px 0;"> Perceived Quality vs. Pricing Positioning</h4>',
+        unsafe_allow_html=True,
+    )
+
+    st.markdown('<div class="chart-container">', unsafe_allow_html=True)
+    st.subheader("Perceived Quality vs. Pricing Matrix")
+
+    perf_map = {
+        "Much worse": 1,
+        "Worse": 2,
+        "About the same": 3,
+        "Better": 4,
+        "Much better": 5,
+    }
+
+    if "perf_quality" in data.columns and "perf_pricing" in data.columns:
+        data["q_score"] = data["perf_quality"].map(perf_map)
+        data["p_score"] = data["perf_pricing"].map(perf_map)
+
+        pos_data = []
+        for comp in competitors:
+            if comp["used_col"] in data.columns:
+                sub = data[data[comp["used_col"]] == 1]
+                valid_sub = sub[
+                    sub["q_score"].notna() & sub["p_score"].notna()
+                ]
+                n_count = len(valid_sub)
+
+                if n_count >= 5:
+                    avg_q = valid_sub["q_score"].mean()
+                    avg_p = valid_sub["p_score"].mean()
+                    pos_data.append({
+                        "id": comp["id"],
+                        "name": comp["name"],
+                        "price": round(avg_p, 2),
+                        "quality": round(avg_q, 2),
+                        "n": n_count,
+                        "is_synlab": comp["id"] == "synlab",
+                    })
+
+        pos_df = pd.DataFrame(pos_data)
+
+        if len(pos_df) > 0:
+            fig = px.scatter(
+                pos_df,
+                x="price",
+                y="quality",
+                text="name",
+                size="n",
+                color="is_synlab",
+                color_discrete_map={True: "#003765", False: "#5BA3D0"},
+                size_max=36,
+            )
+            fig.update_traces(textposition="top center")
+            fig.add_hline(y=3.0, line_dash="dot", line_color="#94a3b8")
+            fig.add_vline(x=3.0, line_dash="dot", line_color="#94a3b8")
+            fig.update_layout(
+                plot_bgcolor="rgba(0,0,0,0)",
+                paper_bgcolor="rgba(0,0,0,0)",
+                font_color="#003765",
+                xaxis_title="Perceived pricing vs. other labs (1=much worse, 5=much better)",
+                yaxis_title="Perceived quality vs. other labs (1=much worse, 5=much better)",
+                xaxis=dict(range=[2.5, 5.0]),
+                yaxis=dict(range=[2.5, 5.2]),
+                showlegend=False,
+                height=420,
+            )
+            st.plotly_chart(fig, use_container_width=True)
+            st.caption(
+                "Based on each brand's own users comparing it to the other lab. SYNLAB Nigeria is perceived to have good quality with matching pricing having both pricing nd qulaity on ≥ 4."
+            )
+        else:
+            st.info(
+                "Not enough paired quality/pricing responses per competitor to plot this reliably."
+            )
+    else:
+        st.info("Quality and pricing comparative fields are not available.")
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    # ===== TOP THREE THREATS CLEARLY IDENTIFIED & EXPLAINED =====
+    st.markdown("---")
+    st.markdown(
+        '<h4 style="color: #003765; margin: 0 0 12px 0;"> Top Three Competitive Threats & Deep-Dive Analysis</h4>',
         unsafe_allow_html=True,
     )
 
@@ -512,16 +592,16 @@ def show():
             """
         <div class="threat-card" style="border-top-color: #003765;">
             <div>
-                <div style="font-size: 11px; color: #0077AD; font-weight: 700; text-transform: uppercase;">THREAT #1 · HIGH CONVERSION Niche</div>
+                <div style="font-size: 11px; color: #0077AD; font-weight: 700; text-transform: uppercase;">THREAT #1 · HIGH CONVERSION NICHE</div>
                 <div class="comp-name">Lifebridge Medical</div>
                 <div class="comp-score">Threat Score: 11.6</div>
                 <div style="font-size: 12px; color: #64748b;">12.0% Usage · 11.0% Awareness · 109.1% Conversion</div>
                 <div class="comp-desc">
-                    <strong>Why it's a big threat:</strong> Lifebridge shows an extraordinary conversion efficiency (>100%), indicating powerful doctor/HMO referral networks in Abuja. They capture high repeat clinical usage despite low brand marketing visibility.
+                    <strong>Why it's a big threat:</strong> Lifebridge shows an extraordinary conversion efficiency (>100%), indicating powerful doctor/HMO referral networks in Abuja. They capture high repeat clinical usage despite low brand marketing visibility[cite: 4].
                 </div>
             </div>
             <div style="margin-top: 12px; padding: 8px; background: #E8F4F8; border-radius: 6px; font-size: 11px; color: #003765;">
-                 <strong>Strategic Counter:</strong> Intensify physician engagement and HMO partnership retention in Abuja core locations.
+                <strong>Strategic Counter:</strong> Leveraging more on physician engagement, HMO  and more business partnership retention in Abuja core locations.
             </div>
         </div>
         """,
@@ -542,7 +622,7 @@ def show():
                 </div>
             </div>
             <div style="margin-top: 12px; padding: 8px; background: #E8F4F8; border-radius: 6px; font-size: 11px; color: #003765;">
-                 <strong>Strategic Counter:</strong> Upgrade SYNLAB's patient mobile app and digital report delivery experience.
+                <strong>Strategic Counter:</strong> Improving SYNLAB's patient mobile and digital report delivery experience.
             </div>
         </div>
         """,
@@ -563,17 +643,17 @@ def show():
                 </div>
             </div>
             <div style="margin-top: 12px; padding: 8px; background: #E8F4F8; border-radius: 6px; font-size: 11px; color: #003765;">
-                 <strong>Strategic Counter:</strong> Introduce structured wellness packages priced in the ₦20,000–50,000 band.
+                 <strong>Strategic Counter:</strong> Introducing more structured wellness packages priced within the ₦50,000 band.
             </div>
         </div>
         """,
             unsafe_allow_html=True,
         )
 
-    # ===== CORRECTION 3: UNIFORM & STANDARDIZED SWOT BOXES =====
+    # ===== STANDARDIZED SWOT BOXES =====
     st.markdown("---")
     st.markdown(
-        '<h4 style="color: #003765; margin: 0 0 12px 0;">🔍 Standardized Strategic SWOT Matrix</h4>',
+        '<h4 style="color: #003765; margin: 0 0 12px 0;"> Standardized Strategic SWOT Matrix</h4>',
         unsafe_allow_html=True,
     )
 
@@ -601,7 +681,7 @@ def show():
         <div class="swot-card swot-opportunities">
             <h4> OPPORTUNITIES</h4>
             <ul>
-                <li>12.0% awareness-to-usage gap (60 conversion-ready prospects)</li>
+                <li>12.0% awareness-to-usage gap (60 conversion-ready prospects</li>
                 <li>Corporate wellness checkup packages for 35–44 age bracket (57.6%)</li>
                 <li>Digital portal expansion for online booking and instant results</li>
                 <li>Expanded physician referral programs in Wuse and Asokoro</li>
