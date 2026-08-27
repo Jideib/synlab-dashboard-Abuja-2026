@@ -5,11 +5,10 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-
 st.set_page_config(
     page_title="Competitive Intelligence · SYNLAB Nigeria",
     page_icon="assets/synlab_logo.png",
-    layout="wide",  # <--- THIS KEEPS THE PAGE WIDE ON RELOAD
+    layout="wide",
     initial_sidebar_state="collapsed",
 )
 
@@ -75,7 +74,6 @@ def show():
         .threat-card .comp-score { font-weight: 800; font-size: 22px; color: #0077AD; margin: 4px 0; }
         .threat-card .comp-desc { font-size: 13px; color: #475569; line-height: 1.5; margin-top: 8px; }
 
-        /* STANDARDIZED SWOT CARDS */
         .swot-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -140,21 +138,26 @@ def show():
     @st.cache_data
     def load_data():
         possible_paths = [
+            "data/SYNLAB_Surveys_Cleaned_498.csv",
+            "SYNLAB_Surveys_Cleaned_498.csv",
+            "data/synlab_clean_498.csv",
+            "synlab_clean_498.csv",
             "data/synlab_clean.csv",
             "synlab_clean.csv",
-            "../data/synlab_clean.csv",
-            "../synlab_clean.csv",
         ]
         for path in possible_paths:
             if os.path.exists(path):
-                return pd.read_csv(path)
+                try:
+                    return pd.read_csv(path, sep=';')
+                except Exception:
+                    return pd.read_csv(path)
         return pd.DataFrame()
 
     data = load_data()
 
     if data.empty:
         st.error(
-            "⚠️ Data not found. Please ensure synlab_clean.csv is in the data folder."
+            "⚠️ Data not found. Please ensure the survey dataset is placed in the project root or data/ folder."
         )
         st.stop()
 
@@ -164,89 +167,88 @@ def show():
         {
             "id": "synlab",
             "name": "SYNLAB Nigeria",
-            "aware_col": "aware_synlab",
-            "used_col": "used_synlab",
+            "aware_cols": ["7. Which of the following medical laboratories in Nigeria are you aware of?/SYNLAB Nigeria", "aware_synlab"],
+            "used_cols": ["9. Have you ever used the services of any of the following laboratories?/SYNLAB Nigeria", "used_synlab"],
+        },
+        {
+            "id": "echolab",
+            "name": "Echo Lab ",
+            "aware_cols": ["7. Which of the following medical laboratories in Nigeria are you aware of?/Echo Lab (EcoScan)", "aware_echolab"],
+            "used_cols": ["9. Have you ever used the services of any of the following laboratories?/Echo Lab (EcoScan)", "used_echolab"],
         },
         {
             "id": "lifebridge",
             "name": "Lifebridge Medical",
-            "aware_col": "aware_lifebridge",
-            "used_col": "used_lifebridge",
+            "aware_cols": ["7. Which of the following medical laboratories in Nigeria are you aware of?/Lifebridge Medical Diagnostics", "aware_lifebridge"],
+            "used_cols": ["9. Have you ever used the services of any of the following laboratories?/Lifebridge Medical Diagnostics", "used_lifebridge"],
         },
         {
             "id": "eclinic",
             "name": "E-Clinic & Diagnostics",
-            "aware_col": "aware_eclinic",
-            "used_col": "used_eclinic",
+            "aware_cols": ["7. Which of the following medical laboratories in Nigeria are you aware of?/e-Clinic & Diagnostics", "aware_eclinic"],
+            "used_cols": ["9. Have you ever used the services of any of the following laboratories?/e-Clinic & Diagnostics", "used_eclinic"],
         },
         {
             "id": "firmcare",
             "name": "Firmcare Diagnostics",
-            "aware_col": "aware_firmcare",
-            "used_col": "used_firmcare",
+            "aware_cols": ["7. Which of the following medical laboratories in Nigeria are you aware of?/Firmcare Diagnostics", "aware_firmcare"],
+            "used_cols": ["9. Have you ever used the services of any of the following laboratories?/Firmcare Diagnostics", "used_firmcare"],
         },
         {
             "id": "mecure",
             "name": "Mecure Healthcare",
-            "aware_col": "aware_mecure",
-            "used_col": "used_mecure",
+            "aware_cols": ["7. Which of the following medical laboratories in Nigeria are you aware of?/Mecure Healthcare", "aware_mecure"],
+            "used_cols": ["9. Have you ever used the services of any of the following laboratories?/Mecure Healthcare", "used_mecure"],
         },
         {
             "id": "clinix",
             "name": "Clinix Diagnostics",
-            "aware_col": "aware_clinix",
-            "used_col": "used_clinix",
+            "aware_cols": ["7. Which of the following medical laboratories in Nigeria are you aware of?/Clinix", "aware_clinix"],
+            "used_cols": ["9. Have you ever used the services of any of the following laboratories?/Clinix", "used_clinix"],
         },
         {
             "id": "lab360",
             "name": "LAB360",
-            "aware_col": "aware_lab360",
-            "used_col": "used_lab360",
+            "aware_cols": ["7. Which of the following medical laboratories in Nigeria are you aware of?/LAB360", "aware_lab360"],
+            "used_cols": ["9. Have you ever used the services of any of the following laboratories?/LAB360", "used_lab360"],
         },
         {
             "id": "apin",
             "name": "APIN Medical Lab",
-            "aware_col": "aware_apin",
-            "used_col": "used_apin",
+            "aware_cols": ["7. Which of the following medical laboratories in Nigeria are you aware of?/APIN Medical Laboratory and Diagnostics", "aware_apin"],
+            "used_cols": ["9. Have you ever used the services of any of the following laboratories?/APIN Medical Laboratory and Diagnostics", "used_apin"],
         },
         {
             "id": "afriglobal",
             "name": "Afriglobal Medicare",
-            "aware_col": "aware_afriglobal",
-            "used_col": "used_afriglobal",
+            "aware_cols": ["7. Which of the following medical laboratories in Nigeria are you aware of?/Afriglobal Medicare", "aware_afriglobal"],
+            "used_cols": ["9. Have you ever used the services of any of the following laboratories?/Afriglobal Medicare", "used_afriglobal"],
         },
         {
             "id": "clina",
             "name": "Clina Lancet",
-            "aware_col": "aware_clina_lancet",
-            "used_col": "used_clina_lancet",
+            "aware_cols": ["7. Which of the following medical laboratories in Nigeria are you aware of?/Clina Lancet", "aware_clina_lancet"],
+            "used_cols": ["9. Have you ever used the services of any of the following laboratories?/Clina Lancet", "used_clina_lancet"],
         },
         {
             "id": "amce",
             "name": "AMCE",
-            "aware_col": "aware_amce",
-            "used_col": "used_amce",
+            "aware_cols": ["7. Which of the following medical laboratories in Nigeria are you aware of?/AMCE (African Medical Centre of Excellence)", "aware_amce"],
+            "used_cols": ["9. Have you ever used the services of any of the following laboratories?/AMCE (African Medical Centre of Excellence)", "used_amce"],
         },
     ]
 
     comp_data = []
     for comp in competitors:
-        aware_count = (
-            data[comp["aware_col"]].sum()
-            if comp["aware_col"] in data.columns
-            else 0
-        )
-        used_count = (
-            data[comp["used_col"]].sum()
-            if comp["used_col"] in data.columns
-            else 0
-        )
+        aware_col = next((c for c in comp["aware_cols"] if c in data.columns), None)
+        used_col = next((c for c in comp["used_cols"] if c in data.columns), None)
+
+        aware_count = (data[aware_col] == 1.0).sum() if aware_col else 0
+        used_count = (data[used_col] == 1.0).sum() if used_col else 0
 
         aware_pct = round(aware_count / total * 100, 1) if total > 0 else 0
         used_pct = round(used_count / total * 100, 1) if total > 0 else 0
-        conversion = (
-            round(used_count / aware_count * 100, 1) if aware_count > 0 else 0
-        )
+        conversion = round(used_count / aware_count * 100, 1) if aware_count > 0 else 0
 
         threat = round((aware_pct * 0.4) + (used_pct * 0.6), 1)
 
@@ -258,6 +260,7 @@ def show():
             "conversion": conversion,
             "threat": threat,
             "is_synlab": comp["id"] == "synlab",
+            "used_col": used_col,
         })
 
     comp_df = pd.DataFrame(comp_data)
@@ -267,7 +270,7 @@ def show():
     st.markdown(
         """
     <div class="page-header">
-        <h1> Competitive Intelligence</h1>
+        <h1>⚔️ Competitive Intelligence</h1>
         <p>Market share, perceived quality vs. pricing positioning, and strategic threat analysis</p>
     </div>
     """,
@@ -335,7 +338,7 @@ def show():
 
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # ===== AWARENESS VS USAGE MATRIX WITH ARROWS =====
+    # ===== AWARENESS VS USAGE MATRIX WITH DE-CLUSTERED LABELS =====
     st.markdown("---")
     st.markdown(
         '<h4 style="color: #003765; margin: 0 0 12px 0;"> Competitive Positioning Matrix</h4>',
@@ -346,22 +349,24 @@ def show():
 
     with col1:
         st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-        st.subheader("Awareness vs. Usage Scatter Matrix (Clustered Callouts)")
+        st.subheader("Awareness vs. Usage Scatter Matrix (De-Cluttered View)")
 
         fig = go.Figure()
 
+        # Strategically separated 8-way directional offsets to eliminate label collision
         label_offsets = {
-            "SYNLAB Nigeria": {"ax": 0, "ay": -40},
-            "Lifebridge Medical": {"ax": 45, "ay": -25},
-            "E-Clinic & Diagnostics": {"ax": 50, "ay": 25},
-            "Mecure Healthcare": {"ax": -50, "ay": -25},
-            "Firmcare Diagnostics": {"ax": -45, "ay": 25},
-            "Clinix Diagnostics": {"ax": 45, "ay": -15},
-            "LAB360": {"ax": -35, "ay": -30},
-            "APIN Medical Lab": {"ax": -45, "ay": 20},
-            "Afriglobal Medicare": {"ax": -40, "ay": 35},
-            "Clina Lancet": {"ax": 35, "ay": 35},
-            "AMCE": {"ax": 40, "ay": 40},
+            "SYNLAB Nigeria": {"ax": 0, "ay": -45},
+            "Lifebridge Medical": {"ax": 0, "ay": -55},
+            "E-Clinic & Diagnostics": {"ax": 80, "ay": -15},
+            "Firmcare Diagnostics": {"ax": -80, "ay": -40},
+            "Mecure Healthcare": {"ax": 75, "ay": -35},
+            "Echo Lab (EcoScan)": {"ax": -80, "ay": -10},
+            "Clinix Diagnostics": {"ax": 75, "ay": 25},
+            "LAB360": {"ax": -70, "ay": 25},
+            "Afriglobal Medicare": {"ax": -80, "ay": -30},
+            "APIN Medical Lab": {"ax": -65, "ay": 45},
+            "Clina Lancet": {"ax": 65, "ay": 45},
+            "AMCE": {"ax": 0, "ay": 50},
         }
 
         for _, row in comp_df.iterrows():
@@ -386,7 +391,7 @@ def show():
             )
 
             offset = label_offsets.get(
-                row["name"], {"ax": 20, "ay": -20}
+                row["name"], {"ax": 25, "ay": -25}
             )
 
             fig.add_annotation(
@@ -404,10 +409,10 @@ def show():
                     size=10,
                     color="#003765" if row["is_synlab"] else "#334155",
                 ),
-                bgcolor="rgba(255, 255, 255, 0.85)",
-                bordercolor="rgba(0, 119, 173, 0.3)"
+                bgcolor="rgba(255, 255, 255, 0.92)",
+                bordercolor="rgba(0, 119, 173, 0.4)"
                 if row["is_synlab"]
-                else "rgba(0,0,0,0.1)",
+                else "rgba(0,0,0,0.15)",
                 borderwidth=1,
                 borderpad=3,
             )
@@ -441,7 +446,7 @@ def show():
             xaxis=dict(range=[-2, 60]),
             yaxis=dict(range=[-2, 48]),
             showlegend=False,
-            height=400,
+            height=430,
             margin=dict(l=10, r=10, t=20, b=10),
         )
         st.plotly_chart(fig, use_container_width=True)
@@ -473,21 +478,22 @@ def show():
         )
         st.plotly_chart(fig, use_container_width=True)
 
-        st.subheader(" Threat Score Ranking")
+        # TOP 6 NON-SYNLAB THREATS
+        st.subheader(" Threat Score Ranking (Top 6)")
         threat_df = (
             comp_df_sorted[comp_df_sorted["is_synlab"] == False]
             .sort_values("threat", ascending=False)
-            .head(4)
+            .head(6)
         )
 
         for i, (_, row) in enumerate(threat_df.iterrows()):
-            color = "#003765" if i == 0 else "#0077AD" if i == 1 else "#2C8FC7"
+            color = "#003765" if i == 0 else "#0077AD" if i == 1 else "#205295" if i == 2 else "#2C8FC7" if i == 3 else "#5BA3D0"
 
             st.markdown(
                 f"""
             <div class="threat-item-mini">
                 <span class="threat-name">{i+1}. {row['name']}</span>
-                <span class="threat-score" style="color: {color};">Threat Score: {row['threat']:.1f} (Usage: {row['usage']}%)</span>
+                <span class="threat-score" style="color: {color};">Score: {row['threat']:.1f} (Usage: {row['usage']}%)</span>
             </div>
             """,
                 unsafe_allow_html=True,
@@ -495,7 +501,7 @@ def show():
 
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # =====  PERCEIVED QUALITY VS. PRICING =====
+    # ===== PERCEIVED QUALITY VS. PRICING =====
     st.markdown("---")
     st.markdown(
         '<h4 style="color: #003765; margin: 0 0 12px 0;"> Perceived Quality vs. Pricing Positioning</h4>',
@@ -513,17 +519,19 @@ def show():
         "Much better": 5,
     }
 
-    if "perf_quality" in data.columns and "perf_pricing" in data.columns:
-        data["q_score"] = data["perf_quality"].map(perf_map)
-        data["p_score"] = data["perf_pricing"].map(perf_map)
+    quality_col = next((c for c in ["15c. Performance: Quality and accuracy of results", "perf_quality"] if c in data.columns), None)
+    pricing_col = next((c for c in ["15d. Performance: Pricing and affordability", "perf_pricing"] if c in data.columns), None)
+
+    if quality_col and pricing_col:
+        data["q_score"] = data[quality_col].map(perf_map)
+        data["p_score"] = data[pricing_col].map(perf_map)
 
         pos_data = []
-        for comp in competitors:
-            if comp["used_col"] in data.columns:
-                sub = data[data[comp["used_col"]] == 1]
-                valid_sub = sub[
-                    sub["q_score"].notna() & sub["p_score"].notna()
-                ]
+        for comp in comp_data:
+            used_col = comp["used_col"]
+            if used_col and used_col in data.columns:
+                sub = data[data[used_col] == 1.0]
+                valid_sub = sub[sub["q_score"].notna() & sub["p_score"].notna()]
                 n_count = len(valid_sub)
 
                 if n_count >= 5:
@@ -535,7 +543,7 @@ def show():
                         "price": round(avg_p, 2),
                         "quality": round(avg_q, 2),
                         "n": n_count,
-                        "is_synlab": comp["id"] == "synlab",
+                        "is_synlab": comp["is_synlab"],
                     })
 
         pos_df = pd.DataFrame(pos_data)
@@ -552,22 +560,22 @@ def show():
                 size_max=36,
             )
             fig.update_traces(textposition="top center")
-            fig.add_hline(y=3.0, line_dash="dot", line_color="#94a3b8")
-            fig.add_vline(x=3.0, line_dash="dot", line_color="#94a3b8")
+            fig.add_hline(y=4.0, line_dash="dot", line_color="#94a3b8")
+            fig.add_vline(x=3.5, line_dash="dot", line_color="#94a3b8")
             fig.update_layout(
                 plot_bgcolor="rgba(0,0,0,0)",
                 paper_bgcolor="rgba(0,0,0,0)",
                 font_color="#003765",
-                xaxis_title="Perceived pricing vs. other labs (1=much worse, 5=much better)",
-                yaxis_title="Perceived quality vs. other labs (1=much worse, 5=much better)",
-                xaxis=dict(range=[2.5, 5.0]),
-                yaxis=dict(range=[2.5, 5.2]),
+                xaxis_title="Perceived Affordability vs. Other Labs (1=Much worse, 5=Much better)",
+                yaxis_title="Perceived Quality vs. Other Labs (1=Much worse, 5=Much better)",
+                xaxis=dict(range=[2.8, 5.0]),
+                yaxis=dict(range=[3.4, 5.2]),
                 showlegend=False,
-                height=420,
+                height=430,
             )
             st.plotly_chart(fig, use_container_width=True)
             st.caption(
-                "Based on each brand's own users comparing it to the other lab. SYNLAB Nigeria is perceived to have good quality with matching pricing having both pricing nd qulaity on ≥ 4."
+                "Based on each brand's user base evaluating quality and price competitiveness. Echolab (EcoScan) and Mecure maintain high quality sentiment alongside accessible pricing perception."
             )
         else:
             st.info(
@@ -578,7 +586,7 @@ def show():
 
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # ===== TOP THREE THREATS CLEARLY IDENTIFIED & EXPLAINED =====
+    # ===== TOP THREE THREATS CLEARLY IDENTIFIED =====
     st.markdown("---")
     st.markdown(
         '<h4 style="color: #003765; margin: 0 0 12px 0;"> Top Three Competitive Threats & Deep-Dive Analysis</h4>',
@@ -592,16 +600,16 @@ def show():
             """
         <div class="threat-card" style="border-top-color: #003765;">
             <div>
-                <div style="font-size: 11px; color: #0077AD; font-weight: 700; text-transform: uppercase;">THREAT #1 · HIGH CONVERSION NICHE</div>
+                <div style="font-size: 11px; color: #0077AD; font-weight: 700; text-transform: uppercase;">THREAT #1 · HIGH CONVERSION REFERRALS</div>
                 <div class="comp-name">Lifebridge Medical</div>
                 <div class="comp-score">Threat Score: 11.6</div>
                 <div style="font-size: 12px; color: #64748b;">12.0% Usage · 11.0% Awareness · 109.1% Conversion</div>
                 <div class="comp-desc">
-                    <strong>Why it's a big threat:</strong> Lifebridge shows an extraordinary conversion efficiency (>100%), indicating powerful doctor/HMO referral networks in Abuja. They capture high repeat clinical usage despite low brand marketing visibility[cite: 4].
+                    <strong>Why it's a major threat:</strong> Lifebridge shows an exceptional conversion efficiency (>100%), driven by strong clinical and doctor referral networks across Abuja. They capture heavy repeat usage despite modest mass marketing.
                 </div>
             </div>
             <div style="margin-top: 12px; padding: 8px; background: #E8F4F8; border-radius: 6px; font-size: 11px; color: #003765;">
-                <strong>Strategic Counter:</strong> Leveraging more on physician engagement, HMO  and more business partnership retention in Abuja core locations.
+                <strong>Strategic Counter:</strong> Strengthen physician relations, B2B clinical partnerships, and HMO retention in central Abuja corridors.
             </div>
         </div>
         """,
@@ -613,16 +621,16 @@ def show():
             """
         <div class="threat-card" style="border-top-color: #0077AD;">
             <div>
-                <div style="font-size: 11px; color: #0077AD; font-weight: 700; text-transform: uppercase;">THREAT #2 · DIGITAL EXPANSION</div>
+                <div style="font-size: 11px; color: #0077AD; font-weight: 700; text-transform: uppercase;">THREAT #2 · DIGITAL CONVENIENCE</div>
                 <div class="comp-name">E-Clinic & Diagnostics</div>
                 <div class="comp-score">Threat Score: 11.5</div>
                 <div style="font-size: 12px; color: #64748b;">9.4% Usage · 14.7% Awareness · 64.4% Conversion</div>
                 <div class="comp-desc">
-                    <strong>Why it's a big threat:</strong> E-Clinic holds the 2nd highest brand awareness in Abuja (14.7%). Their digital-first patient portal and mobile booking capture younger, tech-savvy demographics and price-conscious retail users.
+                    <strong>Why it's a major threat:</strong> E-Clinic commands the second highest brand awareness in Abuja (14.7%). Their streamlined online booking and digital result access appeal strongly to tech-enabled, time-sensitive patients.
                 </div>
             </div>
             <div style="margin-top: 12px; padding: 8px; background: #E8F4F8; border-radius: 6px; font-size: 11px; color: #003765;">
-                <strong>Strategic Counter:</strong> Improving SYNLAB's patient mobile and digital report delivery experience.
+                <strong>Strategic Counter:</strong> Accelerate SYNLAB's mobile report turnaround, digital self-booking portal, and automated WhatsApp delivery.
             </div>
         </div>
         """,
@@ -634,16 +642,16 @@ def show():
             """
         <div class="threat-card" style="border-top-color: #2C8FC7;">
             <div>
-                <div style="font-size: 11px; color: #0077AD; font-weight: 700; text-transform: uppercase;">THREAT #3 · RETAIL VALUE</div>
+                <div style="font-size: 11px; color: #0077AD; font-weight: 700; text-transform: uppercase;">THREAT #3 · RETAIL VALUE & PACKAGES</div>
                 <div class="comp-name">Mecure Healthcare</div>
                 <div class="comp-score">Threat Score: 7.8</div>
                 <div style="font-size: 12px; color: #64748b;">6.0% Usage · 10.6% Awareness · 56.6% Conversion</div>
                 <div class="comp-desc">
-                    <strong>Why it's a big threat:</strong> Mecure leverages aggressive pricing and established brand equity across diagnostics. They compete directly on routine health check packages, drawing away price-sensitive walk-in patients.
+                    <strong>Why it's a major threat:</strong> Mecure combines strong diagnostic brand equity with competitive pricing on routine health screening bundles, drawing away price-sensitive out-of-pocket and walk-in patients.
                 </div>
             </div>
             <div style="margin-top: 12px; padding: 8px; background: #E8F4F8; border-radius: 6px; font-size: 11px; color: #003765;">
-                 <strong>Strategic Counter:</strong> Introducing more structured wellness packages priced within the ₦50,000 band.
+                <strong>Strategic Counter:</strong> Introduce modular wellness packages within the ₦20,000–₦50,000 range and highlight SYNLAB's test precision.
             </div>
         </div>
         """,
@@ -663,37 +671,37 @@ def show():
         <div class="swot-card swot-strengths">
             <h4> STRENGTHS</h4>
             <ul>
-                <li>Highest market brand awareness in Abuja (54.2%)</li>
-                <li>Dominant market usage leader at 42.2%</li>
-                <li>Best conversion efficiency (77.8% awareness to active usage)</li>
-                <li>High impression rating (3.90/5) with clinical accuracy perception</li>
+                <li>Highest market brand awareness in Abuja (54.0%)</li>
+                <li>Dominant market usage leader at 42.0% (209 active patients)</li>
+                <li>Strong awareness-to-usage conversion efficiency (77.7%)</li>
+                <li>Recognized benchmark for diagnostic accuracy and quality (4.23/5)</li>
             </ul>
         </div>
         <div class="swot-card swot-weaknesses">
             <h4> WEAKNESSES</h4>
             <ul>
-                <li>Net Promoter Score (-5.2) driven by 35.9% detractors</li>
-                <li>Digital experience score (3.90/5) lags physical laboratory rating</li>
-                <li>Wait times and turnaround speed noted in feedback</li>
-                <li>Perception of premium pricing creates barrier for walk-ins</li>
+                <li>Price sensitivity among self-paying patients (affordability score 3.86/5)</li>
+                <li>Digital test delivery experience lags specialized tech diagnostic centers</li>
+                <li>Sample collection wait times cited as friction point for walk-ins</li>
+                <li>Lower spontaneous recall outside core urban medical zones</li>
             </ul>
         </div>
         <div class="swot-card swot-opportunities">
             <h4> OPPORTUNITIES</h4>
             <ul>
-                <li>12.0% awareness-to-usage gap (60 conversion-ready prospects</li>
-                <li>Corporate wellness checkup packages for 35–44 age bracket (57.6%)</li>
-                <li>Digital portal expansion for online booking and instant results</li>
-                <li>Expanded physician referral programs in Wuse and Asokoro</li>
+                <li>60 conversion-ready aware prospects (12.0% awareness-usage gap)</li>
+                <li>Corporate and executive health packages tailored to 34–55 demographic (76.6% base)</li>
+                <li>WhatsApp and mobile portal integration for rapid test scheduling and results</li>
+                <li>Strategic referral tie-ins with private practitioners in Wuse and Asokoro</li>
             </ul>
         </div>
         <div class="swot-card swot-threats">
             <h4> THREATS</h4>
             <ul>
-                <li>Lifebridge Medical's referral conversion network (12.0% usage)</li>
-                <li>E-Clinic gaining traction in digital diagnostics (14.7% awareness)</li>
+                <li>Lifebridge Medical's referral dominance and >100% conversion efficiency</li>
+                <li>E-Clinic's tech-driven customer acquisition (14.7% awareness)</li>
                 <li>Mecure offering aggressive pricing on routine health packages</li>
-                <li>Increasing price sensitivity among out-of-pocket patients</li>
+                <li>Echo Lab (EcoScan) capturing dual imaging/pathology share (12.0% unaided recall)</li>
             </ul>
         </div>
     </div>
@@ -711,9 +719,7 @@ def show():
             st.switch_page("app.py")
 
     with nav_col2:
-        if st.button(
-            "📈 Overview", use_container_width=True, key="comp_to_overview"
-        ):
+        if st.button("📈 Overview", use_container_width=True, key="comp_to_overview"):
             st.switch_page("pages/1_Executive_Overview.py")
 
     with nav_col3:
@@ -721,23 +727,14 @@ def show():
             st.switch_page("pages/2_Brand_Health.py")
 
     with nav_col4:
-        if st.button(
-            "👥 Insights", use_container_width=True, key="comp_to_insights"
-        ):
+        if st.button("👥 Insights", use_container_width=True, key="comp_to_insights"):
             st.switch_page("pages/3_Customer_Insights.py")
 
     with nav_col5:
-        st.button(
-            "⚔️ Competitive",
-            use_container_width=True,
-            key="comp_active",
-            disabled=True,
-        )
+        st.button("⚔️ Competitive", use_container_width=True, key="comp_active", disabled=True)
 
     with nav_col6:
-        if st.button(
-            "💡 Strategic", use_container_width=True, key="comp_to_strategic"
-        ):
+        if st.button("💡 Strategic", use_container_width=True, key="comp_to_strategic"):
             st.switch_page("pages/5_Strategic_Analytics.py")
 
 
