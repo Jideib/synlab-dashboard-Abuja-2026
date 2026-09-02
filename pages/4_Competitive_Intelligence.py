@@ -1,4 +1,3 @@
-# pages/4_Competitive_Intelligence.py
 import os
 import pandas as pd
 import plotly.express as px
@@ -6,737 +5,603 @@ import plotly.graph_objects as go
 import streamlit as st
 
 st.set_page_config(
-    page_title="Competitive Intelligence · SYNLAB Nigeria",
-    page_icon="assets/synlab_logo.png",
+    page_title="Competitive Intelligence | SYNLAB Nigeria",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
-def show():
-    """Render the Competitive Intelligence page"""
+st.markdown(
+    """
+<style>
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    .st-emotion-cache-1y4p8pa {display: none;}
 
-    st.markdown(
-        """
-    <style>
-        #MainMenu {visibility: hidden;}
-        footer {visibility: hidden;}
-        header {visibility: hidden;}
-        .st-emotion-cache-1y4p8pa {display: none;}
-
-        .main > div {
-            max-width: 1400px !important;
-            margin: 0 auto;
-            padding: 0 32px;
-        }
-
-        :root {
-            --synlab-cerulean: #0077AD;
-            --synlab-midnight: #003765;
-            --synlab-halfbaked: #7CB8D3;
-            --synlab-navy: #0A2647;
-            --synlab-blue-medium: #205295;
-            --synlab-blue-light: #2C8FC7;
-            --synlab-blue-lighter: #5BA3D0;
-            --synlab-bg-light: #E8F4F8;
-        }
-
-        .page-header {
-            background: linear-gradient(135deg, var(--synlab-midnight) 0%, var(--synlab-cerulean) 100%);
-            color: white;
-            padding: 24px 32px;
-            border-radius: 12px;
-            margin-bottom: 24px;
-        }
-        .page-header h1 { margin: 0; font-size: 28px; font-weight: 700; }
-        .page-header p { margin: 4px 0 0; opacity: 0.85; }
-
-        .chart-container {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-            margin: 12px 0;
-            height: 100%;
-        }
-
-        .threat-card {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-            border-top: 4px solid #003765;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-        }
-        .threat-card .comp-name { font-weight: 700; color: #003765; font-size: 16px; }
-        .threat-card .comp-score { font-weight: 800; font-size: 22px; color: #0077AD; margin: 4px 0; }
-        .threat-card .comp-desc { font-size: 13px; color: #475569; line-height: 1.5; margin-top: 8px; }
-
-        .swot-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
-            margin-top: 12px;
-        }
-        .swot-card {
-            border-radius: 12px;
-            padding: 20px 24px;
-            min-height: 220px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-            display: flex;
-            flex-direction: column;
-        }
-        .swot-card h4 {
-            margin: 0 0 12px 0;
-            font-size: 16px;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .swot-card ul {
-            margin: 0;
-            padding-left: 20px;
-            font-size: 13px;
-            line-height: 1.6;
-            flex-grow: 1;
-        }
-        .swot-card li {
-            margin-bottom: 8px;
-        }
-
-        .swot-strengths { background: #003765; color: white; }
-        .swot-weaknesses { background: #5BA3D0; color: #003765; }
-        .swot-opportunities { background: #0077AD; color: white; }
-        .swot-threats { background: #7CB8D3; color: #003765; }
-
-        .threat-item-mini {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 8px 12px;
-            border-bottom: 1px solid #f1f5f9;
-        }
-        .threat-item-mini .threat-name { font-weight: 600; color: #003765; font-size: 13px; }
-        .threat-item-mini .threat-score { font-weight: 700; font-size: 13px; }
-
-        @media (max-width: 768px) {
-            .main > div { padding: 0 16px !important; }
-            .page-header { padding: 16px 20px; }
-            .page-header h1 { font-size: 22px; }
-            .swot-grid { grid-template-columns: 1fr; }
-        }
-    </style>
-    """,
-        unsafe_allow_html=True,
-    )
-
-    # ===== DATA LOADING =====
-    @st.cache_data
-    def load_data():
-        possible_paths = [
-            "data/SYNLAB_Surveys_Cleaned_498.csv",
-            "SYNLAB_Surveys_Cleaned_498.csv",
-            "data/synlab_clean_498.csv",
-            "synlab_clean_498.csv",
-            "data/synlab_clean.csv",
-            "synlab_clean.csv",
-        ]
-        for path in possible_paths:
-            if os.path.exists(path):
-                try:
-                    return pd.read_csv(path, sep=';')
-                except Exception:
-                    return pd.read_csv(path)
-        return pd.DataFrame()
-
-    data = load_data()
-
-    if data.empty:
-        st.error(
-            "⚠️ Data not found. Please ensure the survey dataset is placed in the project root or data/ folder."
-        )
-        st.stop()
-
-    total = len(data)
-
-    competitors = [
-        {
-            "id": "synlab",
-            "name": "SYNLAB Nigeria",
-            "aware_cols": ["7. Which of the following medical laboratories in Nigeria are you aware of?/SYNLAB Nigeria", "aware_synlab"],
-            "used_cols": ["9. Have you ever used the services of any of the following laboratories?/SYNLAB Nigeria", "used_synlab"],
-        },
-        {
-            "id": "echolab",
-            "name": "Echo Lab ",
-            "aware_cols": ["7. Which of the following medical laboratories in Nigeria are you aware of?/Echo Lab (EcoScan)", "aware_echolab"],
-            "used_cols": ["9. Have you ever used the services of any of the following laboratories?/Echo Lab (EcoScan)", "used_echolab"],
-        },
-        {
-            "id": "lifebridge",
-            "name": "Lifebridge Medical",
-            "aware_cols": ["7. Which of the following medical laboratories in Nigeria are you aware of?/Lifebridge Medical Diagnostics", "aware_lifebridge"],
-            "used_cols": ["9. Have you ever used the services of any of the following laboratories?/Lifebridge Medical Diagnostics", "used_lifebridge"],
-        },
-        {
-            "id": "eclinic",
-            "name": "E-Clinic & Diagnostics",
-            "aware_cols": ["7. Which of the following medical laboratories in Nigeria are you aware of?/e-Clinic & Diagnostics", "aware_eclinic"],
-            "used_cols": ["9. Have you ever used the services of any of the following laboratories?/e-Clinic & Diagnostics", "used_eclinic"],
-        },
-        {
-            "id": "firmcare",
-            "name": "Firmcare Diagnostics",
-            "aware_cols": ["7. Which of the following medical laboratories in Nigeria are you aware of?/Firmcare Diagnostics", "aware_firmcare"],
-            "used_cols": ["9. Have you ever used the services of any of the following laboratories?/Firmcare Diagnostics", "used_firmcare"],
-        },
-        {
-            "id": "mecure",
-            "name": "Mecure Healthcare",
-            "aware_cols": ["7. Which of the following medical laboratories in Nigeria are you aware of?/Mecure Healthcare", "aware_mecure"],
-            "used_cols": ["9. Have you ever used the services of any of the following laboratories?/Mecure Healthcare", "used_mecure"],
-        },
-        {
-            "id": "clinix",
-            "name": "Clinix Diagnostics",
-            "aware_cols": ["7. Which of the following medical laboratories in Nigeria are you aware of?/Clinix", "aware_clinix"],
-            "used_cols": ["9. Have you ever used the services of any of the following laboratories?/Clinix", "used_clinix"],
-        },
-        {
-            "id": "lab360",
-            "name": "LAB360",
-            "aware_cols": ["7. Which of the following medical laboratories in Nigeria are you aware of?/LAB360", "aware_lab360"],
-            "used_cols": ["9. Have you ever used the services of any of the following laboratories?/LAB360", "used_lab360"],
-        },
-        {
-            "id": "apin",
-            "name": "APIN Medical Lab",
-            "aware_cols": ["7. Which of the following medical laboratories in Nigeria are you aware of?/APIN Medical Laboratory and Diagnostics", "aware_apin"],
-            "used_cols": ["9. Have you ever used the services of any of the following laboratories?/APIN Medical Laboratory and Diagnostics", "used_apin"],
-        },
-        {
-            "id": "afriglobal",
-            "name": "Afriglobal Medicare",
-            "aware_cols": ["7. Which of the following medical laboratories in Nigeria are you aware of?/Afriglobal Medicare", "aware_afriglobal"],
-            "used_cols": ["9. Have you ever used the services of any of the following laboratories?/Afriglobal Medicare", "used_afriglobal"],
-        },
-        {
-            "id": "clina",
-            "name": "Clina Lancet",
-            "aware_cols": ["7. Which of the following medical laboratories in Nigeria are you aware of?/Clina Lancet", "aware_clina_lancet"],
-            "used_cols": ["9. Have you ever used the services of any of the following laboratories?/Clina Lancet", "used_clina_lancet"],
-        },
-        {
-            "id": "amce",
-            "name": "AMCE",
-            "aware_cols": ["7. Which of the following medical laboratories in Nigeria are you aware of?/AMCE (African Medical Centre of Excellence)", "aware_amce"],
-            "used_cols": ["9. Have you ever used the services of any of the following laboratories?/AMCE (African Medical Centre of Excellence)", "used_amce"],
-        },
-    ]
-
-    comp_data = []
-    for comp in competitors:
-        aware_col = next((c for c in comp["aware_cols"] if c in data.columns), None)
-        used_col = next((c for c in comp["used_cols"] if c in data.columns), None)
-
-        aware_count = (data[aware_col] == 1.0).sum() if aware_col else 0
-        used_count = (data[used_col] == 1.0).sum() if used_col else 0
-
-        aware_pct = round(aware_count / total * 100, 1) if total > 0 else 0
-        used_pct = round(used_count / total * 100, 1) if total > 0 else 0
-        conversion = round(used_count / aware_count * 100, 1) if aware_count > 0 else 0
-
-        threat = round((aware_pct * 0.4) + (used_pct * 0.6), 1)
-
-        comp_data.append({
-            "id": comp["id"],
-            "name": comp["name"],
-            "awareness": aware_pct,
-            "usage": used_pct,
-            "conversion": conversion,
-            "threat": threat,
-            "is_synlab": comp["id"] == "synlab",
-            "used_col": used_col,
-        })
-
-    comp_df = pd.DataFrame(comp_data)
-    comp_df_sorted = comp_df.sort_values("usage", ascending=False)
-
-    # ===== PAGE HEADER =====
-    st.markdown(
-        """
-    <div class="page-header">
-        <h1>⚔️ Competitive Intelligence</h1>
-        <p>Market share, perceived quality vs. pricing positioning, and strategic threat analysis</p>
-    </div>
-    """,
-        unsafe_allow_html=True,
-    )
-
-    # ===== MARKET SHARE (USAGE) =====
-    st.markdown(
-        '<h4 style="color: #003765; margin: 0 0 12px 0;"> Market Usage Share (%)</h4>',
-        unsafe_allow_html=True,
-    )
-
-    col1, col2 = st.columns([2, 1])
-
-    with col1:
-        st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-
-        fig = px.bar(
-            comp_df_sorted,
-            x="name",
-            y="usage",
-            title="Laboratory Usage Rates in Abuja Market (%)",
-            color="usage",
-            color_continuous_scale=["#5BA3D0", "#003765"],
-            text="usage",
-        )
-        fig.update_traces(texttemplate="%{text:.1f}%", textposition="outside")
-        fig.update_layout(
-            plot_bgcolor="rgba(0,0,0,0)",
-            paper_bgcolor="rgba(0,0,0,0)",
-            font_color="#003765",
-            xaxis_title="",
-            yaxis_title="Usage Rate (%)",
-            showlegend=False,
-            height=380,
-            margin=dict(l=10, r=40, t=40, b=60),
-        )
-        st.plotly_chart(fig, use_container_width=True)
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    with col2:
-        st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-        st.subheader(" Market Leader")
-
-        top = comp_df_sorted.iloc[0]
-        second = comp_df_sorted.iloc[1]
-        gap = top["usage"] - second["usage"]
-
-        st.markdown(
-            f"""
-        <div style="text-align: center; padding: 12px 0;">
-            <div style="font-size: 40px; margin-bottom: 4px;"></div>
-            <div style="font-size: 18px; font-weight: 700; color: #003765;">{top['name']}</div>
-            <div style="font-size: 32px; font-weight: 800; color: #0077AD; margin: 4px 0;">{top['usage']}%</div>
-            <div style="font-size: 12px; color: #64748b;">Market Usage Rate</div>
-            <div style="margin-top: 12px; padding: 10px; background: #E8F4F8; border-radius: 8px;">
-                <span style="font-size: 12px; color: #003765;">
-                    <strong>Leadership Margin:</strong> SYNLAB leads by <strong>+{gap:.1f}%</strong> over {second['name']} ({second['usage']}%).
-                </span>
-            </div>
-        </div>
-        """,
-            unsafe_allow_html=True,
-        )
-
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    # ===== AWARENESS VS USAGE MATRIX WITH DE-CLUSTERED LABELS =====
-    st.markdown("---")
-    st.markdown(
-        '<h4 style="color: #003765; margin: 0 0 12px 0;"> Competitive Positioning Matrix</h4>',
-        unsafe_allow_html=True,
-    )
-
-    col1, col2 = st.columns([1.3, 1])
-
-    with col1:
-        st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-        st.subheader("Awareness vs. Usage Scatter Matrix (De-Cluttered View)")
-
-        fig = go.Figure()
-
-        # Strategically separated 8-way directional offsets to eliminate label collision
-        label_offsets = {
-            "SYNLAB Nigeria": {"ax": 0, "ay": -45},
-            "Lifebridge Medical": {"ax": 0, "ay": -55},
-            "E-Clinic & Diagnostics": {"ax": 80, "ay": -15},
-            "Firmcare Diagnostics": {"ax": -80, "ay": -40},
-            "Mecure Healthcare": {"ax": 75, "ay": -35},
-            "Echo Lab (EcoScan)": {"ax": -80, "ay": -10},
-            "Clinix Diagnostics": {"ax": 75, "ay": 25},
-            "LAB360": {"ax": -70, "ay": 25},
-            "Afriglobal Medicare": {"ax": -80, "ay": -30},
-            "APIN Medical Lab": {"ax": -65, "ay": 45},
-            "Clina Lancet": {"ax": 65, "ay": 45},
-            "AMCE": {"ax": 0, "ay": 50},
-        }
-
-        for _, row in comp_df.iterrows():
-            color = "#003765" if row["is_synlab"] else "#0077AD"
-            size = 20 if row["is_synlab"] else 12
-            symbol = "star" if row["is_synlab"] else "circle"
-
-            fig.add_trace(
-                go.Scatter(
-                    x=[row["awareness"]],
-                    y=[row["usage"]],
-                    mode="markers",
-                    marker=dict(
-                        size=size,
-                        color=color,
-                        symbol=symbol,
-                        line=dict(width=1, color="white"),
-                    ),
-                    name=row["name"],
-                    hovertemplate=f"<b>{row['name']}</b><br>Awareness: {row['awareness']}%<br>Usage: {row['usage']}%<extra></extra>",
-                )
-            )
-
-            offset = label_offsets.get(
-                row["name"], {"ax": 25, "ay": -25}
-            )
-
-            fig.add_annotation(
-                x=row["awareness"],
-                y=row["usage"],
-                text=f"<b>{row['name']}</b>",
-                showarrow=True,
-                arrowhead=2,
-                arrowsize=0.8,
-                arrowwidth=1.2,
-                arrowcolor="#003765" if row["is_synlab"] else "#64748b",
-                ax=offset["ax"],
-                ay=offset["ay"],
-                font=dict(
-                    size=10,
-                    color="#003765" if row["is_synlab"] else "#334155",
-                ),
-                bgcolor="rgba(255, 255, 255, 0.92)",
-                bordercolor="rgba(0, 119, 173, 0.4)"
-                if row["is_synlab"]
-                else "rgba(0,0,0,0.15)",
-                borderwidth=1,
-                borderpad=3,
-            )
-
-        avg_aware = comp_df["awareness"].mean()
-        avg_usage = comp_df["usage"].mean()
-
-        fig.add_shape(
-            type="line",
-            x0=avg_aware,
-            y0=0,
-            x1=avg_aware,
-            y1=50,
-            line=dict(color="rgba(0,0,0,0.15)", width=1, dash="dash"),
-        )
-        fig.add_shape(
-            type="line",
-            x0=0,
-            y0=avg_usage,
-            x1=60,
-            y1=avg_usage,
-            line=dict(color="rgba(0,0,0,0.15)", width=1, dash="dash"),
-        )
-
-        fig.update_layout(
-            plot_bgcolor="rgba(0,0,0,0)",
-            paper_bgcolor="rgba(0,0,0,0)",
-            font_color="#003765",
-            xaxis_title="Brand Awareness (%)",
-            yaxis_title="Market Usage (%)",
-            xaxis=dict(range=[-2, 60]),
-            yaxis=dict(range=[-2, 48]),
-            showlegend=False,
-            height=430,
-            margin=dict(l=10, r=10, t=20, b=10),
-        )
-        st.plotly_chart(fig, use_container_width=True)
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    with col2:
-        st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-        st.subheader(" Conversion Efficiency (%)")
-
-        fig = px.bar(
-            comp_df_sorted,
-            x="name",
-            y="conversion",
-            title="Awareness → Usage Conversion Efficiency (%)",
-            color="conversion",
-            color_continuous_scale=["#5BA3D0", "#003765"],
-            text="conversion",
-        )
-        fig.update_traces(texttemplate="%{text:.1f}%", textposition="outside")
-        fig.update_layout(
-            plot_bgcolor="rgba(0,0,0,0)",
-            paper_bgcolor="rgba(0,0,0,0)",
-            font_color="#003765",
-            xaxis_title="",
-            yaxis_title="Conversion Rate (%)",
-            showlegend=False,
-            height=200,
-            margin=dict(l=10, r=40, t=40, b=60),
-        )
-        st.plotly_chart(fig, use_container_width=True)
-
-        # TOP 6 NON-SYNLAB THREATS
-        st.subheader(" Threat Score Ranking (Top 6)")
-        threat_df = (
-            comp_df_sorted[comp_df_sorted["is_synlab"] == False]
-            .sort_values("threat", ascending=False)
-            .head(6)
-        )
-
-        for i, (_, row) in enumerate(threat_df.iterrows()):
-            color = "#003765" if i == 0 else "#0077AD" if i == 1 else "#205295" if i == 2 else "#2C8FC7" if i == 3 else "#5BA3D0"
-
-            st.markdown(
-                f"""
-            <div class="threat-item-mini">
-                <span class="threat-name">{i+1}. {row['name']}</span>
-                <span class="threat-score" style="color: {color};">Score: {row['threat']:.1f} (Usage: {row['usage']}%)</span>
-            </div>
-            """,
-                unsafe_allow_html=True,
-            )
-
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    # ===== PERCEIVED QUALITY VS. PRICING =====
-    st.markdown("---")
-    st.markdown(
-        '<h4 style="color: #003765; margin: 0 0 12px 0;"> Perceived Quality vs. Pricing Positioning</h4>',
-        unsafe_allow_html=True,
-    )
-
-    st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-    st.subheader("Perceived Quality vs. Pricing Matrix")
-
-    perf_map = {
-        "Much worse": 1,
-        "Worse": 2,
-        "About the same": 3,
-        "Better": 4,
-        "Much better": 5,
+    .stApp {
+        background-color: #F8FAFC;
     }
 
-    quality_col = next((c for c in ["15c. Performance: Quality and accuracy of results", "perf_quality"] if c in data.columns), None)
-    pricing_col = next((c for c in ["15d. Performance: Pricing and affordability", "perf_pricing"] if c in data.columns), None)
+    .main > div {
+        max-width: 1400px !important;
+        margin: 0 auto;
+        padding: 0 32px;
+    }
 
-    if quality_col and pricing_col:
-        data["q_score"] = data[quality_col].map(perf_map)
-        data["p_score"] = data[pricing_col].map(perf_map)
+    :root {
+        --synlab-cerulean: #0077AD;
+        --synlab-midnight: #003765;
+        --synlab-halfbaked: #7CB8D3;
+        --synlab-navy: #0A2647;
+        --synlab-blue-medium: #205295;
+        --synlab-blue-light: #2C8FC7;
+        --synlab-slate: #64748B;
+        --synlab-bg-light: #F1F5F9;
+        --synlab-border: #E2E8F0;
+    }
 
-        pos_data = []
-        for comp in comp_data:
-            used_col = comp["used_col"]
-            if used_col and used_col in data.columns:
-                sub = data[data[used_col] == 1.0]
-                valid_sub = sub[sub["q_score"].notna() & sub["p_score"].notna()]
-                n_count = len(valid_sub)
+    .page-header {
+        background: linear-gradient(135deg, var(--synlab-midnight) 0%, var(--synlab-cerulean) 100%);
+        color: white;
+        padding: 24px 32px;
+        border-radius: 10px;
+        margin-bottom: 24px;
+    }
+    .page-header h1 { margin: 0; font-size: 26px; font-weight: 700; }
+    .page-header p { margin: 4px 0 0; opacity: 0.85; font-size: 14px; }
 
-                if n_count >= 5:
-                    avg_q = valid_sub["q_score"].mean()
-                    avg_p = valid_sub["p_score"].mean()
-                    pos_data.append({
-                        "id": comp["id"],
-                        "name": comp["name"],
-                        "price": round(avg_p, 2),
-                        "quality": round(avg_q, 2),
-                        "n": n_count,
-                        "is_synlab": comp["is_synlab"],
-                    })
+    .chart-container {
+        background: white;
+        border-radius: 10px;
+        padding: 20px;
+        border: 1px solid var(--synlab-border);
+        margin-bottom: 20px;
+        height: 100%;
+    }
 
-        pos_df = pd.DataFrame(pos_data)
+    .threat-card {
+        background: white;
+        border-radius: 10px;
+        padding: 20px;
+        border: 1px solid var(--synlab-border);
+        border-top: 4px solid var(--synlab-midnight);
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+    .threat-card .comp-tag { font-size: 11px; color: var(--synlab-cerulean); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+    .threat-card .comp-name { font-weight: 700; color: var(--synlab-midnight); font-size: 17px; margin-top: 2px; }
+    .threat-card .comp-score { font-weight: 800; font-size: 24px; color: var(--synlab-cerulean); margin: 4px 0; }
+    .threat-card .comp-stats { font-size: 12px; color: var(--synlab-slate); margin-bottom: 8px; font-weight: 600; }
+    .threat-card .comp-desc { font-size: 12px; color: #475569; line-height: 1.55; }
 
-        if len(pos_df) > 0:
-            fig = px.scatter(
-                pos_df,
-                x="price",
-                y="quality",
-                text="name",
-                size="n",
-                color="is_synlab",
-                color_discrete_map={True: "#003765", False: "#5BA3D0"},
-                size_max=36,
-            )
-            fig.update_traces(textposition="top center")
-            fig.add_hline(y=4.0, line_dash="dot", line_color="#94a3b8")
-            fig.add_vline(x=3.5, line_dash="dot", line_color="#94a3b8")
-            fig.update_layout(
-                plot_bgcolor="rgba(0,0,0,0)",
-                paper_bgcolor="rgba(0,0,0,0)",
-                font_color="#003765",
-                xaxis_title="Perceived Affordability vs. Other Labs (1=Much worse, 5=Much better)",
-                yaxis_title="Perceived Quality vs. Other Labs (1=Much worse, 5=Much better)",
-                xaxis=dict(range=[2.8, 5.0]),
-                yaxis=dict(range=[3.4, 5.2]),
-                showlegend=False,
-                height=430,
-            )
-            st.plotly_chart(fig, use_container_width=True)
-            st.caption(
-                "Based on each brand's user base evaluating quality and price competitiveness. Echolab (EcoScan) and Mecure maintain high quality sentiment alongside accessible pricing perception."
-            )
-        else:
-            st.info(
-                "Not enough paired quality/pricing responses per competitor to plot this reliably."
-            )
-    else:
-        st.info("Quality and pricing comparative fields are not available.")
+    .threat-item-mini {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 12px;
+        border-bottom: 1px solid #F1F5F9;
+    }
+    .threat-item-mini .threat-name { font-weight: 600; color: var(--synlab-midnight); font-size: 13px; }
+    .threat-item-mini .threat-score { font-weight: 700; font-size: 12px; }
 
+    .swot-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        margin-top: 12px;
+    }
+    .swot-card {
+        border-radius: 10px;
+        padding: 20px 24px;
+        min-height: 200px;
+        display: flex;
+        flex-direction: column;
+    }
+    .swot-card h4 {
+        margin: 0 0 12px 0;
+        font-size: 15px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+    }
+    .swot-card ul {
+        margin: 0;
+        padding-left: 18px;
+        font-size: 13px;
+        line-height: 1.6;
+    }
+    .swot-card li { margin-bottom: 6px; }
+
+    .swot-strengths { background: #003765; color: white; }
+    .swot-weaknesses { background: #E8F4F8; color: #003765; border: 1px solid #7CB8D3; }
+    .swot-opportunities { background: #0077AD; color: white; }
+    .swot-threats { background: #F1F5F9; color: #002647; border: 1px solid #CBD5E1; }
+
+    @media (max-width: 768px) {
+        .main > div { padding: 0 16px !important; }
+        .page-header { padding: 16px 20px; }
+        .page-header h1 { font-size: 20px; }
+        .swot-grid { grid-template-columns: 1fr; }
+    }
+</style>
+""",
+    unsafe_allow_html=True,
+)
+
+# Load data directly
+@st.cache_data
+def load_data():
+    paths = [
+        "data/synlab_clean.csv",
+        "synlab_clean.csv",
+        "../data/synlab_clean.csv",
+        "../synlab_clean.csv",
+    ]
+    for path in paths:
+        if os.path.exists(path):
+            try:
+                return pd.read_csv(path)
+            except Exception:
+                pass
+    return pd.DataFrame()
+
+data = load_data()
+
+if data.empty:
+    st.error("Data file not found. Please ensure synlab_clean.csv is located in the data directory.")
+    st.stop()
+
+total = len(data)
+
+# Competitor mapping
+competitors = [
+    {"id": "synlab", "name": "SYNLAB Nigeria", "aware_col": "aware_synlab", "used_col": "used_synlab"},
+    {"id": "lifebridge", "name": "Lifebridge Medical", "aware_col": "aware_lifebridge", "used_col": "used_lifebridge"},
+    {"id": "eclinic", "name": "E-Clinic Diagnostics", "aware_col": "aware_eclinic", "used_col": "used_eclinic"},
+    {"id": "firmcare", "name": "Firmcare Diagnostics", "aware_col": "aware_firmcare", "used_col": "used_firmcare"},
+    {"id": "mecure", "name": "Mecure Healthcare", "aware_col": "aware_mecure", "used_col": "used_mecure"},
+    {"id": "echolab", "name": "Echo Lab", "aware_col": "aware_echolab", "used_col": "used_echolab"},
+    {"id": "lab360", "name": "LAB360", "aware_col": "aware_lab360", "used_col": "used_lab360"},
+    {"id": "clinix", "name": "Clinix Diagnostics", "aware_col": "aware_clinix", "used_col": "used_clinix"},
+    {"id": "afriglobal", "name": "Afriglobal Medicare", "aware_col": "aware_afriglobal", "used_col": "used_afriglobal"},
+    {"id": "apin", "name": "APIN Medical Lab", "aware_col": "aware_apin", "used_col": "used_apin"},
+    {"id": "clina", "name": "Clina Lancet", "aware_col": "aware_clina_lancet", "used_col": "used_clina_lancet"},
+    {"id": "amce", "name": "AMCE", "aware_col": "aware_amce", "used_col": "used_amce"},
+]
+
+comp_data = []
+for comp in competitors:
+    a_col = comp["aware_col"]
+    u_col = comp["used_col"]
+
+    aware_count = int(data[a_col].sum()) if a_col in data.columns else 0
+    used_count = int(data[u_col].sum()) if u_col in data.columns else 0
+
+    aware_pct = round(aware_count / total * 100, 1) if total > 0 else 0.0
+    used_pct = round(used_count / total * 100, 1) if total > 0 else 0.0
+    conversion = round(used_count / aware_count * 100, 1) if aware_count > 0 else 0.0
+
+    threat = round((aware_pct * 0.4) + (used_pct * 0.6), 1)
+
+    comp_data.append({
+        "id": comp["id"],
+        "name": comp["name"],
+        "awareness": aware_pct,
+        "aware_count": aware_count,
+        "usage": used_pct,
+        "used_count": used_count,
+        "conversion": conversion,
+        "threat": threat,
+        "is_synlab": comp["id"] == "synlab",
+    })
+
+comp_df = pd.DataFrame(comp_data)
+comp_df_sorted = comp_df.sort_values("usage", ascending=False)
+
+# Header
+st.markdown(
+    """
+<div class="page-header">
+    <h1>Competitive Intelligence</h1>
+    <p>Market usage share, positioning matrix, conversion efficiency, and threat analysis</p>
+</div>
+""",
+    unsafe_allow_html=True,
+)
+
+# ===== 1. MARKET USAGE SHARE =====
+st.markdown("<h4 style='color: #003765; margin: 0 0 12px 0;'>Market Usage Share (%)</h4>", unsafe_allow_html=True)
+
+col_m1, col_m2 = st.columns([2, 1])
+
+with col_m1:
+    st.markdown('<div class="chart-container">', unsafe_allow_html=True)
+
+    fig_usage = px.bar(
+        comp_df_sorted,
+        x="name",
+        y="usage",
+        title="Laboratory Usage Rates in Abuja Metropolitan Market (%)",
+        color="usage",
+        color_continuous_scale=["#5BA3D0", "#003765"],
+        text=[f"{u:.1f}% ({c})" for u, c in zip(comp_df_sorted["usage"], comp_df_sorted["used_count"])],
+    )
+    fig_usage.update_traces(textposition="outside")
+    fig_usage.update_layout(
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        font_color="#003765",
+        xaxis_title="",
+        yaxis_title="Usage Rate (%)",
+        yaxis=dict(range=[0, 50]),
+        showlegend=False,
+        height=360,
+        margin=dict(l=10, r=20, t=40, b=50),
+    )
+    st.plotly_chart(fig_usage, use_container_width=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # ===== TOP THREE THREATS CLEARLY IDENTIFIED =====
-    st.markdown("---")
+with col_m2:
+    st.markdown('<div class="chart-container">', unsafe_allow_html=True)
+    st.markdown("<h4 style='color: #003765; margin: 0 0 12px 0;'>Market Leadership Position</h4>", unsafe_allow_html=True)
+
+    leader = comp_df_sorted.iloc[0]
+    runner_up = comp_df_sorted.iloc[1]
+    lead_margin = round(leader["usage"] - runner_up["usage"], 1)
+
     st.markdown(
-        '<h4 style="color: #003765; margin: 0 0 12px 0;"> Top Three Competitive Threats & Deep-Dive Analysis</h4>',
+        f"""
+    <div style="text-align: center; padding: 16px 0;">
+        <div style="font-size: 18px; font-weight: 700; color: #003765;">{leader['name']}</div>
+        <div style="font-size: 38px; font-weight: 800; color: #0077AD; margin: 4px 0;">{leader['usage']}%</div>
+        <div style="font-size: 12px; color: #64748B; text-transform: uppercase; font-weight: 600;">Metropolitan Market Share</div>
+        <div style="margin-top: 18px; padding: 12px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; text-align: left;">
+            <div style="font-size: 13px; color: #003765; font-weight: 700;">Leadership Advantage: +{lead_margin}%</div>
+            <div style="font-size: 12px; color: #475569; margin-top: 4px; line-height: 1.5;">
+                SYNLAB commands more than 3x the market usage of its nearest competitor, <strong>{runner_up['name']}</strong> ({runner_up['usage']}%).
+            </div>
+        </div>
+    </div>
+    """,
         unsafe_allow_html=True,
     )
+    st.markdown("</div>", unsafe_allow_html=True)
 
-    col1, col2, col3 = st.columns(3)
+# ===== 2. POSITIONING MATRIX & CONVERSION EFFICIENCY =====
+st.markdown("<div style='margin-top: 14px;'></div>", unsafe_allow_html=True)
+st.markdown("<h4 style='color: #003765; margin: 0 0 12px 0;'>Competitive Positioning Matrix</h4>", unsafe_allow_html=True)
 
-    with col1:
-        st.markdown(
-            """
-        <div class="threat-card" style="border-top-color: #003765;">
-            <div>
-                <div style="font-size: 11px; color: #0077AD; font-weight: 700; text-transform: uppercase;">THREAT #1 · HIGH CONVERSION REFERRALS</div>
-                <div class="comp-name">Lifebridge Medical</div>
-                <div class="comp-score">Threat Score: 11.6</div>
-                <div style="font-size: 12px; color: #64748b;">12.0% Usage · 11.0% Awareness · 109.1% Conversion</div>
-                <div class="comp-desc">
-                    <strong>Why it's a major threat:</strong> Lifebridge shows an exceptional conversion efficiency (>100%), driven by strong clinical and doctor referral networks across Abuja. They capture heavy repeat usage despite modest mass marketing.
-                </div>
-            </div>
-            <div style="margin-top: 12px; padding: 8px; background: #E8F4F8; border-radius: 6px; font-size: 11px; color: #003765;">
-                <strong>Strategic Counter:</strong> Strengthen physician relations, B2B clinical partnerships, and HMO retention in central Abuja corridors.
-            </div>
-        </div>
-        """,
-            unsafe_allow_html=True,
+col_p1, col_p2 = st.columns([1.3, 1.0])
+
+with col_p1:
+    st.markdown('<div class="chart-container">', unsafe_allow_html=True)
+    st.markdown("<h4 style='color: #003765; margin: 0 0 8px 0;'>Awareness vs. Usage Matrix</h4>", unsafe_allow_html=True)
+
+    fig_matrix = go.Figure()
+
+    label_offsets = {
+        "SYNLAB Nigeria": {"ax": 0, "ay": -35},
+        "Lifebridge Medical": {"ax": 0, "ay": -45},
+        "E-Clinic Diagnostics": {"ax": 65, "ay": -15},
+        "Firmcare Diagnostics": {"ax": -70, "ay": -25},
+        "Mecure Healthcare": {"ax": 65, "ay": -25},
+        "Echo Lab": {"ax": -65, "ay": -10},
+        "Clinix Diagnostics": {"ax": 65, "ay": 20},
+        "LAB360": {"ax": -60, "ay": 20},
+        "Afriglobal Medicare": {"ax": -65, "ay": -25},
+        "APIN Medical Lab": {"ax": -55, "ay": 35},
+        "Clina Lancet": {"ax": 55, "ay": 35},
+        "AMCE": {"ax": 0, "ay": 40},
+    }
+
+    for _, row in comp_df.iterrows():
+        color = "#003765" if row["is_synlab"] else "#0077AD"
+        size = 18 if row["is_synlab"] else 11
+
+        fig_matrix.add_trace(
+            go.Scatter(
+                x=[row["awareness"]],
+                y=[row["usage"]],
+                mode="markers",
+                marker=dict(size=size, color=color, line=dict(width=1.5, color="white")),
+                name=row["name"],
+                hovertemplate=f"<b>{row['name']}</b><br>Awareness: {row['awareness']}%<br>Usage: {row['usage']}%<extra></extra>",
+            )
         )
 
-    with col2:
-        st.markdown(
-            """
-        <div class="threat-card" style="border-top-color: #0077AD;">
-            <div>
-                <div style="font-size: 11px; color: #0077AD; font-weight: 700; text-transform: uppercase;">THREAT #2 · DIGITAL CONVENIENCE</div>
-                <div class="comp-name">E-Clinic & Diagnostics</div>
-                <div class="comp-score">Threat Score: 11.5</div>
-                <div style="font-size: 12px; color: #64748b;">9.4% Usage · 14.7% Awareness · 64.4% Conversion</div>
-                <div class="comp-desc">
-                    <strong>Why it's a major threat:</strong> E-Clinic commands the second highest brand awareness in Abuja (14.7%). Their streamlined online booking and digital result access appeal strongly to tech-enabled, time-sensitive patients.
-                </div>
-            </div>
-            <div style="margin-top: 12px; padding: 8px; background: #E8F4F8; border-radius: 6px; font-size: 11px; color: #003765;">
-                <strong>Strategic Counter:</strong> Accelerate SYNLAB's mobile report turnaround, digital self-booking portal, and automated WhatsApp delivery.
-            </div>
-        </div>
-        """,
-            unsafe_allow_html=True,
+        offset = label_offsets.get(row["name"], {"ax": 20, "ay": -20})
+        fig_matrix.add_annotation(
+            x=row["awareness"],
+            y=row["usage"],
+            text=f"<b>{row['name']}</b>",
+            showarrow=True,
+            arrowhead=2,
+            arrowsize=0.8,
+            arrowwidth=1.0,
+            arrowcolor="#64748B",
+            ax=offset["ax"],
+            ay=offset["ay"],
+            font=dict(size=10, color="#003765" if row["is_synlab"] else "#334155"),
+            bgcolor="rgba(255, 255, 255, 0.9)",
+            bordercolor="rgba(0, 55, 101, 0.2)",
+            borderwidth=1,
+            borderpad=2,
         )
 
-    with col3:
-        st.markdown(
-            """
-        <div class="threat-card" style="border-top-color: #2C8FC7;">
-            <div>
-                <div style="font-size: 11px; color: #0077AD; font-weight: 700; text-transform: uppercase;">THREAT #3 · RETAIL VALUE & PACKAGES</div>
-                <div class="comp-name">Mecure Healthcare</div>
-                <div class="comp-score">Threat Score: 7.8</div>
-                <div style="font-size: 12px; color: #64748b;">6.0% Usage · 10.6% Awareness · 56.6% Conversion</div>
-                <div class="comp-desc">
-                    <strong>Why it's a major threat:</strong> Mecure combines strong diagnostic brand equity with competitive pricing on routine health screening bundles, drawing away price-sensitive out-of-pocket and walk-in patients.
-                </div>
-            </div>
-            <div style="margin-top: 12px; padding: 8px; background: #E8F4F8; border-radius: 6px; font-size: 11px; color: #003765;">
-                <strong>Strategic Counter:</strong> Introduce modular wellness packages within the ₦20,000–₦50,000 range and highlight SYNLAB's test precision.
-            </div>
-        </div>
-        """,
-            unsafe_allow_html=True,
-        )
+    avg_aware = comp_df["awareness"].mean()
+    avg_usage = comp_df["usage"].mean()
 
-    # ===== STANDARDIZED SWOT BOXES =====
-    st.markdown("---")
-    st.markdown(
-        '<h4 style="color: #003765; margin: 0 0 12px 0;"> Standardized Strategic SWOT Matrix</h4>',
-        unsafe_allow_html=True,
+    fig_matrix.add_shape(type="line", x0=avg_aware, y0=0, x1=avg_aware, y1=50, line=dict(color="rgba(0,0,0,0.15)", width=1, dash="dash"))
+    fig_matrix.add_shape(type="line", x0=0, y0=avg_usage, x1=60, y1=avg_usage, line=dict(color="rgba(0,0,0,0.15)", width=1, dash="dash"))
+
+    fig_matrix.update_layout(
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        font_color="#003765",
+        xaxis_title="Brand Awareness (%)",
+        yaxis_title="Market Usage (%)",
+        xaxis=dict(range=[-2, 60]),
+        yaxis=dict(range=[-2, 48]),
+        showlegend=False,
+        height=380,
+        margin=dict(l=10, r=10, t=20, b=10),
     )
+    st.plotly_chart(fig_matrix, use_container_width=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
+with col_p2:
+    st.markdown('<div class="chart-container">', unsafe_allow_html=True)
+    st.markdown("<h4 style='color: #003765; margin: 0 0 8px 0;'>Awareness-to-Usage Conversion (%)</h4>", unsafe_allow_html=True)
+
+    fig_conv = px.bar(
+        comp_df_sorted,
+        x="name",
+        y="conversion",
+        color="conversion",
+        color_continuous_scale=["#5BA3D0", "#003765"],
+        text=[f"{c:.1f}%" for c in comp_df_sorted["conversion"]],
+    )
+    fig_conv.update_traces(textposition="outside")
+    fig_conv.update_layout(
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        font_color="#003765",
+        xaxis_title="",
+        yaxis_title="Conversion Rate (%)",
+        yaxis=dict(range=[0, 120]),
+        showlegend=False,
+        height=180,
+        margin=dict(l=10, r=10, t=10, b=40),
+    )
+    st.plotly_chart(fig_conv, use_container_width=True)
+
+    # Top 6 Threats
+    st.markdown("<div style='font-size: 13px; font-weight: 700; color: #003765; margin: 12px 0 6px 0;'>Competitor Threat Score Ranking</div>", unsafe_allow_html=True)
+    threat_df = comp_df_sorted[comp_df_sorted["is_synlab"] == False].sort_values("threat", ascending=False).head(6)
+
+    for i, (_, r) in enumerate(threat_df.iterrows()):
+        st.markdown(
+            f"""
+        <div class="threat-item-mini">
+            <span class="threat-name">{i+1}. {r['name']}</span>
+            <span class="threat-score" style="color: #0077AD;">Score: {r['threat']:.1f} ({r['usage']}% usage)</span>
+        </div>
+        """,
+            unsafe_allow_html=True,
+        )
+    st.markdown("</div>", unsafe_allow_html=True)
+
+# ===== 3. COMPETITIVE ADVANTAGE & HEAD-TO-HEAD RATINGS =====
+st.markdown("<div style='margin-top: 14px;'></div>", unsafe_allow_html=True)
+st.markdown("<h4 style='color: #003765; margin: 0 0 12px 0;'>Competitive Advantage vs. Other Laboratories</h4>", unsafe_allow_html=True)
+
+st.markdown('<div class="chart-container">', unsafe_allow_html=True)
+
+label_map = {
+    "cx_professionalism": "Staff Professionalism",
+    "cx_result_speed": "Result Turnaround Speed",
+    "cx_accuracy": "Diagnostic Accuracy & Precision",
+    "cx_access": "Location Access & Convenience",
+    "cx_range": "Test Menu Comprehensive Range",
+    "cx_digital": "Digital Portal & Online Experience",
+    "cx_value": "Pricing & Value for Money",
+}
+
+comp_adv_list = []
+for col_key, title in label_map.items():
+    if col_key in data.columns:
+        valid_comp = data[col_key].dropna()
+        n_valid = len(valid_comp)
+        better_cnt = ((valid_comp == "Better") | (valid_comp == "Much better")).sum()
+        pct = round(better_cnt / n_valid * 100, 1)
+        comp_adv_list.append({"Parameter": title, "Superiority_Pct": pct, "Valid_N": n_valid})
+
+comp_adv_df = pd.DataFrame(comp_adv_list).sort_values("Superiority_Pct", ascending=True)
+
+col_a1, col_a2 = st.columns([1.6, 1.0])
+
+with col_a1:
+    fig_adv = px.bar(
+        comp_adv_df,
+        x="Superiority_Pct",
+        y="Parameter",
+        orientation="h",
+        text=[f"{p:.1f}% Better" for p in comp_adv_df["Superiority_Pct"]],
+        color="Superiority_Pct",
+        color_continuous_scale=["#5BA3D0", "#003765"],
+    )
+    fig_adv.update_traces(textposition="outside")
+    fig_adv.update_layout(
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        font_color="#003765",
+        xaxis_title="Percentage Rated Better or Much Better than Alternative Labs (%)",
+        yaxis_title="",
+        xaxis=dict(range=[40, 95]),
+        showlegend=False,
+        height=320,
+        margin=dict(l=10, r=40, t=10, b=10),
+    )
+    st.plotly_chart(fig_adv, use_container_width=True)
+
+with col_a2:
+    st.markdown("<div style='font-size: 13px; font-weight: 700; color: #003765; margin-bottom: 8px;'>Competitive Positioning Insights</div>", unsafe_allow_html=True)
     st.markdown(
         """
-    <div class="swot-grid">
-        <div class="swot-card swot-strengths">
-            <h4> STRENGTHS</h4>
-            <ul>
-                <li>Highest market brand awareness in Abuja (54.0%)</li>
-                <li>Dominant market usage leader at 42.0% (209 active patients)</li>
-                <li>Strong awareness-to-usage conversion efficiency (77.7%)</li>
-                <li>Recognized benchmark for diagnostic accuracy and quality (4.23/5)</li>
-            </ul>
+    <div style="padding: 14px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 12px; color: #334155; line-height: 1.7;">
+        <strong>Clinical Benchmark:</strong> Staff professionalism (81.4%) and turnaround speed (79.4%) represent SYNLAB's strongest competitive moats.<br><br>
+        <strong>Diagnostic Precision:</strong> 73.8% of patients consider SYNLAB superior in accuracy.<br><br>
+        <strong>Defensive Focus:</strong> Pricing & Value (59.8%) is the only parameter below 65%, highlighting out-of-pocket sensitivity against local clinics.
+    </div>
+    """,
+        unsafe_allow_html=True,
+    )
+
+st.markdown("</div>", unsafe_allow_html=True)
+
+# ===== 4. TOP THREE THREATS DEEP-DIVE =====
+st.markdown("<div style='margin-top: 14px;'></div>", unsafe_allow_html=True)
+st.markdown("<h4 style='color: #003765; margin: 0 0 12px 0;'>Primary Competitive Threats & Counter-Strategies</h4>", unsafe_allow_html=True)
+
+col_t1, col_t2, col_t3 = st.columns(3)
+
+with col_t1:
+    st.markdown(
+        """
+    <div class="threat-card">
+        <div>
+            <div class="comp-tag">Threat #1 · Doctor Referrals</div>
+            <div class="comp-name">Lifebridge Medical</div>
+            <div class="comp-score">Threat Score: 11.6</div>
+            <div class="comp-stats">12.0% Usage · 11.0% Awareness · 109.1% Conversion</div>
+            <div class="comp-desc">
+                Commands the second highest usage share in Abuja (12.0%). Demonstrates high conversion efficiency driven by established doctor referral loops across private hospitals.
+            </div>
         </div>
-        <div class="swot-card swot-weaknesses">
-            <h4> WEAKNESSES</h4>
-            <ul>
-                <li>Price sensitivity among self-paying patients (affordability score 3.86/5)</li>
-                <li>Digital test delivery experience lags specialized tech diagnostic centers</li>
-                <li>Sample collection wait times cited as friction point for walk-ins</li>
-                <li>Lower spontaneous recall outside core urban medical zones</li>
-            </ul>
-        </div>
-        <div class="swot-card swot-opportunities">
-            <h4> OPPORTUNITIES</h4>
-            <ul>
-                <li>60 conversion-ready aware prospects (12.0% awareness-usage gap)</li>
-                <li>Corporate and executive health packages tailored to 34–55 demographic (76.6% base)</li>
-                <li>WhatsApp and mobile portal integration for rapid test scheduling and results</li>
-                <li>Strategic referral tie-ins with private practitioners in Wuse and Asokoro</li>
-            </ul>
-        </div>
-        <div class="swot-card swot-threats">
-            <h4> THREATS</h4>
-            <ul>
-                <li>Lifebridge Medical's referral dominance and >100% conversion efficiency</li>
-                <li>E-Clinic's tech-driven customer acquisition (14.7% awareness)</li>
-                <li>Mecure offering aggressive pricing on routine health packages</li>
-                <li>Echo Lab (EcoScan) capturing dual imaging/pathology share (12.0% unaided recall)</li>
-            </ul>
+        <div style="margin-top: 14px; padding: 10px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 6px; font-size: 11px; color: #003765;">
+            <strong>Counter-Strategy:</strong> Deepen physician relations, corporate HMO retention, and B2B clinical partnerships in central Abuja corridors.
         </div>
     </div>
     """,
         unsafe_allow_html=True,
     )
 
-    # ===== NAVIGATION =====
-    st.markdown("---")
+with col_t2:
+    st.markdown(
+        """
+    <div class="threat-card">
+        <div>
+            <div class="comp-tag">Threat #2 · Digital Convenience</div>
+            <div class="comp-name">E-Clinic Diagnostics</div>
+            <div class="comp-score">Threat Score: 11.5</div>
+            <div class="comp-stats">9.4% Usage · 14.7% Awareness · 64.4% Conversion</div>
+            <div class="comp-desc">
+                Commands the highest brand awareness among all non-SYNLAB competitors (14.7%). Streamlined online booking and rapid portal results appeal to tech-enabled patients.
+            </div>
+        </div>
+        <div style="margin-top: 14px; padding: 10px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 6px; font-size: 11px; color: #003765;">
+            <strong>Counter-Strategy:</strong> Upgrade SYNLAB's digital patient portal, enable automated WhatsApp delivery, and promote mobile scheduling.
+        </div>
+    </div>
+    """,
+        unsafe_allow_html=True,
+    )
 
-    nav_col1, nav_col2, nav_col3, nav_col4, nav_col5, nav_col6 = st.columns(6)
+with col_t3:
+    st.markdown(
+        """
+    <div class="threat-card">
+        <div>
+            <div class="comp-tag">Threat #3 · Screening Packages</div>
+            <div class="comp-name">Mecure Healthcare</div>
+            <div class="comp-score">Threat Score: 7.8</div>
+            <div class="comp-stats">6.0% Usage · 10.6% Awareness · 56.6% Conversion</div>
+            <div class="comp-desc">
+                Competes directly on bundled wellness packages and routine checkups, drawing away price-sensitive out-of-pocket individuals.
+            </div>
+        </div>
+        <div style="margin-top: 14px; padding: 10px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 6px; font-size: 11px; color: #003765;">
+            <strong>Counter-Strategy:</strong> Introduce modular wellness packages within the ₦20,000–₦50,000 sweet spot while emphasizing test accuracy.
+        </div>
+    </div>
+    """,
+        unsafe_allow_html=True,
+    )
 
-    with nav_col1:
-        if st.button("🏠 Cover", use_container_width=True, key="comp_to_cover"):
-            st.switch_page("app.py")
+# ===== 5. STANDARDIZED SWOT MATRIX =====
+st.markdown("<div style='margin-top: 24px;'></div>", unsafe_allow_html=True)
+st.markdown("<h4 style='color: #003765; margin: 0 0 12px 0;'>Strategic SWOT Matrix</h4>", unsafe_allow_html=True)
 
-    with nav_col2:
-        if st.button("📈 Overview", use_container_width=True, key="comp_to_overview"):
-            st.switch_page("pages/1_Executive_Overview.py")
+st.markdown(
+    """
+<div class="swot-grid">
+    <div class="swot-card swot-strengths">
+        <h4>Strengths</h4>
+        <ul>
+            <li>Dominant metropolitan usage leader at 42.0% (209 active patients)</li>
+            <li>Highest market awareness across Abuja (54.0%)</li>
+            <li>Strong awareness-to-usage conversion rate (77.7%)</li>
+            <li>Benchmark clinical reputation: 81.4% rate staff professionalism superior</li>
+        </ul>
+    </div>
+    <div class="swot-card swot-weaknesses">
+        <h4>Weaknesses</h4>
+        <ul>
+            <li>Price sensitivity among self-paying patients (59.8% rate value superior)</li>
+            <li>Digital portal adoption lags pure-play tech diagnostic centers</li>
+            <li>Sample collection wait times during peak morning hours</li>
+            <li>Lower spontaneous recall in peripheral suburban corridors</li>
+        </ul>
+    </div>
+    <div class="swot-card swot-opportunities">
+        <h4>Opportunities</h4>
+        <ul>
+            <li>60 conversion-ready aware prospects (12.0% awareness-usage gap)</li>
+            <li>Modular wellness screening packages priced under ₦50,000</li>
+            <li>Automated WhatsApp and mobile results delivery integration</li>
+            <li>Targeted physician referral programs in Wuse, Gwarimpa, and Gwagwalada</li>
+        </ul>
+    </div>
+    <div class="swot-card swot-threats">
+        <h4>Threats</h4>
+        <ul>
+            <li>Lifebridge Medical leveraging deep doctor referral integration</li>
+            <li>E-Clinic Diagnostics expanding market share through digital channels</li>
+            <li>Mecure Healthcare offering aggressive pricing on routine tests</li>
+            <li>HMO fee-schedule pressures impacting diagnostic reimbursement</li>
+        </ul>
+    </div>
+</div>
+""",
+    unsafe_allow_html=True,
+)
 
-    with nav_col3:
-        if st.button("🏷️ Brand Health", use_container_width=True, key="comp_to_brand"):
-            st.switch_page("pages/2_Brand_Health.py")
+# ===== 6. NAVIGATION =====
+st.markdown("<div style='margin-top: 24px;'></div>", unsafe_allow_html=True)
 
-    with nav_col4:
-        if st.button("👥 Insights", use_container_width=True, key="comp_to_insights"):
-            st.switch_page("pages/3_Customer_Insights.py")
+nav_col1, nav_col2, nav_col3, nav_col4, nav_col5, nav_col6 = st.columns(6)
 
-    with nav_col5:
-        st.button("⚔️ Competitive", use_container_width=True, key="comp_active", disabled=True)
+with nav_col1:
+    if st.button("Cover", use_container_width=True, key="comp_to_cover"):
+        st.switch_page("app.py")
 
-    with nav_col6:
-        if st.button("💡 Strategic", use_container_width=True, key="comp_to_strategic"):
-            st.switch_page("pages/5_Strategic_Analytics.py")
+with nav_col2:
+    if st.button("Overview", use_container_width=True, key="comp_to_overview"):
+        st.switch_page("pages/1_Executive_Overview.py")
 
+with nav_col3:
+    if st.button("Brand Health", use_container_width=True, key="comp_to_brand"):
+        st.switch_page("pages/2_Brand_Health.py")
 
-if __name__ == "__main__":
-    show()
+with nav_col4:
+    if st.button("Customer Insights", use_container_width=True, key="comp_to_insights"):
+        st.switch_page("pages/3_Customer_Insights.py")
+
+with nav_col5:
+    st.button("Competitive Intelligence", use_container_width=True, key="comp_active", disabled=True)
+
+with nav_col6:
+    if st.button("Strategic Analytics", use_container_width=True, key="comp_to_strategic"):
+        st.switch_page("pages/5_Strategic_Analytics.py")

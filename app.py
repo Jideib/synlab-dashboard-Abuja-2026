@@ -1,22 +1,26 @@
-# app.py - SYNLAB Dashboard Cover Page (Landing Page)
 import os
 import pandas as pd
 import streamlit as st
 from PIL import Image
 from utils import render_hero_logo
 
-# ===== PAGE CONFIGURATION =====
+# Configuration
+try:
+    icon = Image.open("assets/synlab_logo.png")
+    st.set_page_config(
+        page_title="SYNLAB Nigeria | Market Intelligence",
+        page_icon=icon,
+        layout="wide",
+        initial_sidebar_state="collapsed",
+    )
+except Exception:
+    st.set_page_config(
+        page_title="SYNLAB Nigeria | Market Intelligence",
+        layout="wide",
+        initial_sidebar_state="collapsed",
+    )
 
-icon = Image.open("assets/synlab_logo.png")
-
-st.set_page_config(
-    page_title="SYNLAB Nigeria · Market Intelligence",
-    page_icon=icon,
-    layout="wide",
-    initial_sidebar_state="collapsed",
-)
-
-# ===== HIDE DEFAULT STREAMLIT ELEMENTS & GLOBAL STYLES =====
+# Clean, Professional Styling (Emoji-Free)
 st.markdown(
     """
 <style>
@@ -26,13 +30,13 @@ st.markdown(
     .st-emotion-cache-1y4p8pa {display: none;}
 
     .stApp {
-        background: linear-gradient(180deg, #F0F7FA 0%, #FFFFFF 100%);
+        background-color: #F8FAFC;
     }
 
     .main > div {
         max-width: 1200px;
         margin: 0 auto;
-        padding: 0 20px;
+        padding: 0 24px;
     }
 
     :root {
@@ -40,64 +44,32 @@ st.markdown(
         --synlab-midnight: #003765;
         --synlab-halfbaked: #7CB8D3;
         --synlab-navy: #0A2647;
-        --synlab-bg-light: #E8F4F8;
+        --synlab-slate: #64748B;
+        --synlab-bg-light: #F1F5F9;
+        --synlab-border: #E2E8F0;
     }
 
     .cover-container {
         max-width: 1100px;
         margin: 0 auto;
-        padding: 20px 0;
+        padding: 16px 0 32px 0;
     }
 
-    /* Hero Section */
     .hero-section {
         background: linear-gradient(135deg, var(--synlab-midnight) 0%, var(--synlab-cerulean) 100%);
-        border-radius: 20px;
-        padding: 48px 56px;
+        border-radius: 12px;
+        padding: 44px 48px;
         text-align: center;
-        color: white;
-        margin-bottom: 32px;
-        position: relative;
-        overflow: hidden;
-        box-shadow: 0 8px 24px rgba(0, 55, 101, 0.15);
-    }
-
-    .hero-section::before {
-        content: '';
-        position: absolute;
-        top: -50%;
-        right: -20%;
-        width: 400px;
-        height: 400px;
-        background: rgba(124, 184, 211, 0.08);
-        border-radius: 50%;
-    }
-
-    .hero-section::after {
-        content: '';
-        position: absolute;
-        bottom: -40%;
-        left: -10%;
-        width: 300px;
-        height: 300px;
-        background: rgba(124, 184, 211, 0.06);
-        border-radius: 50%;
-    }
-
-    .hero-icon {
-        font-size: 56px;
-        margin-bottom: 12px;
-        position: relative;
-        z-index: 1;
+        color: #FFFFFF;
+        margin-bottom: 28px;
+        box-shadow: 0 4px 16px rgba(0, 55, 101, 0.08);
     }
 
     .hero-title {
-        font-size: 46px;
+        font-size: 40px;
         font-weight: 800;
-        letter-spacing: -1px;
+        letter-spacing: -0.5px;
         margin: 0;
-        position: relative;
-        z-index: 1;
     }
 
     .hero-title .highlight {
@@ -105,31 +77,25 @@ st.markdown(
     }
 
     .hero-subtitle {
-        font-size: 20px;
+        font-size: 18px;
         opacity: 0.9;
-        margin: 10px 0 0;
-        position: relative;
-        z-index: 1;
+        margin: 8px 0 0;
         font-weight: 400;
     }
 
     .hero-divider {
-        width: 60px;
-        height: 4px;
+        width: 48px;
+        height: 3px;
         background: var(--synlab-halfbaked);
-        margin: 20px auto 0;
+        margin: 18px auto 0;
         border-radius: 2px;
-        position: relative;
-        z-index: 1;
     }
 
     .hero-meta {
         display: flex;
         justify-content: center;
         gap: 48px;
-        margin-top: 28px;
-        position: relative;
-        z-index: 1;
+        margin-top: 24px;
         flex-wrap: wrap;
     }
 
@@ -138,269 +104,281 @@ st.markdown(
     }
 
     .hero-meta-value {
-        font-size: 26px;
+        font-size: 24px;
         font-weight: 700;
         display: block;
     }
 
     .hero-meta-label {
-        font-size: 13px;
+        font-size: 12px;
         opacity: 0.8;
         text-transform: uppercase;
         letter-spacing: 0.5px;
     }
 
-    /* KPI Cards */
     .kpi-row {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
         gap: 16px;
-        margin-bottom: 32px;
+        margin-bottom: 28px;
     }
 
     .kpi-card {
-        background: white;
-        border-radius: 12px;
+        background: #FFFFFF;
+        border-radius: 10px;
         padding: 20px 24px;
         text-align: center;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        border: 1px solid var(--synlab-border);
         border-top: 4px solid var(--synlab-cerulean);
-        transition: transform 0.2s, box-shadow 0.2s;
-    }
-
-    .kpi-card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 8px 20px rgba(0, 119, 173, 0.12);
     }
 
     .kpi-card:nth-child(1) { border-top-color: var(--synlab-midnight); }
     .kpi-card:nth-child(2) { border-top-color: var(--synlab-cerulean); }
-    .kpi-card:nth-child(3) { border-top-color: #2C8FC7; }
-    .kpi-card:nth-child(4) { border-top-color: var(--synlab-halfbaked); }
+    .kpi-card:nth-child(3) { border-top-color: #205295; }
+    .kpi-card:nth-child(4) { border-top-color: #7CB8D3; }
 
     .kpi-value {
-        font-size: 32px;
+        font-size: 30px;
         font-weight: 700;
         color: var(--synlab-midnight);
+        line-height: 1.2;
     }
 
     .kpi-label {
-        font-size: 13px;
-        color: #64748b;
+        font-size: 12px;
+        color: var(--synlab-slate);
         font-weight: 600;
         text-transform: uppercase;
-        margin-top: 4px;
+        margin-top: 6px;
         letter-spacing: 0.5px;
     }
 
-    .kpi-trend {
+    .kpi-subtext {
         font-size: 12px;
         margin-top: 6px;
-        color: #0077AD;
+        color: #475569;
         font-weight: 500;
     }
 
-    /* Status Badge */
     .status-badge {
         display: inline-block;
-        padding: 4px 12px;
-        border-radius: 12px;
-        font-size: 12px;
+        padding: 2px 10px;
+        border-radius: 6px;
+        font-size: 11px;
         font-weight: 600;
+        background: #FEE2E2;
+        color: #991B1B;
     }
-    .status-attention { background: #E8F4F8; color: #003765; border: 1px solid #7CB8D3; }
 
-    /* Insights Section */
+    .status-badge.neutral {
+        background: #E8F4F8;
+        color: #003765;
+    }
+
     .insights-row {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
         gap: 16px;
-        margin-bottom: 32px;
+        margin-bottom: 28px;
     }
 
     .insight-card {
-        background: var(--synlab-bg-light);
-        border-radius: 12px;
-        padding: 20px 24px;
+        background: #FFFFFF;
+        border-radius: 10px;
+        padding: 20px;
+        border: 1px solid var(--synlab-border);
         border-left: 4px solid var(--synlab-cerulean);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+
+    .insight-header {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        margin-bottom: 8px;
     }
 
     .insight-number {
-        font-size: 20px;
+        font-size: 16px;
         font-weight: 700;
         color: var(--synlab-cerulean);
     }
 
     .insight-title {
-        font-weight: 600;
+        font-weight: 700;
         color: var(--synlab-midnight);
-        margin: 6px 0 4px;
-        font-size: 16px;
+        font-size: 15px;
     }
 
     .insight-desc {
         font-size: 13px;
         color: #475569;
-        line-height: 1.5;
-        margin: 0;
+        line-height: 1.55;
+        margin: 0 0 12px 0;
     }
 
     .insight-tag {
         display: inline-block;
-        background: white;
-        padding: 4px 12px;
-        border-radius: 12px;
+        align-self: flex-start;
+        background: var(--synlab-bg-light);
+        padding: 3px 8px;
+        border-radius: 4px;
         font-size: 11px;
-        color: var(--synlab-cerulean);
+        color: var(--synlab-midnight);
         font-weight: 600;
-        margin-top: 10px;
+        border: 1px solid var(--synlab-border);
     }
 
-    /* Footer */
+    .nav-header {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--synlab-midnight);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin: 12px 0 14px 0;
+    }
+
     .cover-footer {
-        background: var(--synlab-navy);
-        border-radius: 12px;
-        padding: 20px 24px;
+        background: #FFFFFF;
+        border: 1px solid var(--synlab-border);
+        border-radius: 10px;
+        padding: 16px 20px;
         text-align: center;
-        color: white;
-        font-size: 13px;
-        margin-top: 32px;
+        color: var(--synlab-slate);
+        font-size: 12px;
+        margin-top: 28px;
     }
 
     .cover-footer strong {
-        color: var(--synlab-halfbaked);
+        color: var(--synlab-midnight);
     }
 
     .cover-footer .separator {
-        margin: 0 10px;
-        opacity: 0.3;
+        margin: 0 8px;
+        color: #CBD5E1;
     }
 
     @media (max-width: 900px) {
         .kpi-row { grid-template-columns: repeat(2, 1fr); }
         .insights-row { grid-template-columns: 1fr; }
-        .hero-title { font-size: 32px; }
-        .hero-meta { gap: 20px; }
+        .hero-title { font-size: 30px; }
+        .hero-meta { gap: 24px; }
     }
 </style>
 """,
     unsafe_allow_html=True,
 )
 
-
-# ===== DATA LOADING =====
+# Data Loading
 @st.cache_data
 def load_data():
-    possible_paths = [
-        "data/synlab_clean_standardized.csv",
-        "synlab_clean_standardized.csv",
-        "/data/synlab_clean_standardized.csv",
-        "../synlab_clean_standardized.csv",
+    paths = [
         "data/synlab_clean.csv",
         "synlab_clean.csv",
-        "/data/synlab_clean.csv",
-        "../synlab_clean.csv",
+        "data/synlab_clean_standardized.csv",
+        "synlab_clean_standardized.csv",
     ]
-    for path in possible_paths:
+    for path in paths:
         if os.path.exists(path):
-            return pd.read_csv(path)
+            try:
+                return pd.read_csv(path)
+            except Exception:
+                pass
     return pd.DataFrame()
-
 
 data = load_data()
 
 if data.empty:
-    st.error(
-        "⚠️ Data file not found. Please ensure 'synlab_clean.csv' is in the data folder."
-    )
+    st.error("Dataset not found. Please ensure synlab_clean.csv is present in the data folder.")
     st.stop()
 
-# ===== DETECT COLUMN NAMES DYNAMICALLY =====
+# Helper for column matching
 def find_column(df, patterns):
-    """Find a column that matches any of the patterns"""
     for pattern in patterns:
         for col in df.columns:
             if pattern.lower() in col.lower():
                 return col
     return None
 
-# Find SYNLAB awareness column
-aware_col = find_column(data, ['synlab', 'aware_synlab'])
-used_col = find_column(data, ['synlab', 'used_synlab'])
-nps_col = find_column(data, ['nps_score', 'recommend synlab'])
-impression_col = find_column(data, ['impression', 'overall_impression'])
+aware_col = find_column(data, ["aware_synlab"])
+used_col = find_column(data, ["used_synlab"])
+nps_col = find_column(data, ["nps_score"])
+loc_col = find_column(data, ["location"])
 
-if aware_col is None or used_col is None:
-    st.error("⚠️ Required SYNLAB awareness/usage columns not found in the data.")
-    st.write("Available columns:", data.columns.tolist())
+if not aware_col or not used_col:
+    st.error("Core awareness and usage columns could not be identified.")
     st.stop()
 
-# ===== CALCULATE VERIFIED METRICS =====
+# Exact Metrics Computation
 total = len(data)
+data[aware_col] = pd.to_numeric(data[aware_col], errors="coerce").fillna(0)
+data[used_col] = pd.to_numeric(data[used_col], errors="coerce").fillna(0)
 
-# Convert to numeric if needed
-data[aware_col] = pd.to_numeric(data[aware_col], errors='coerce').fillna(0)
-data[used_col] = pd.to_numeric(data[used_col], errors='coerce').fillna(0)
+aware_count = int(data[aware_col].sum())
+used_count = int(data[used_col].sum())
+awareness_pct = (aware_count / total * 100) if total > 0 else 0
+usage_pct = (used_count / total * 100) if total > 0 else 0
+conversion_gap = awareness_pct - usage_pct
+conversion_rate = (used_count / aware_count * 100) if aware_count > 0 else 0
 
-awareness = (data[aware_col].sum() / total) * 100 if total > 0 else 0
-usage = (data[used_col].sum() / total) * 100 if total > 0 else 0
-awareness_gap = awareness - usage
+# NPS Computation
+nps = 0.0
+promoters = 0
+passives = 0
+detractors = 0
+detractor_pct = 0.0
+nps_valid_count = 0
 
-# NPS Calculation (Valid Responses)
-if nps_col:
-    data[nps_col] = pd.to_numeric(data[nps_col], errors='coerce')
+if nps_col and nps_col in data.columns:
+    data[nps_col] = pd.to_numeric(data[nps_col], errors="coerce")
     nps_valid = data[data[nps_col].notna()]
     nps_valid_count = len(nps_valid)
-    
     if nps_valid_count > 0:
-        # Create NPS segments
-        promoters = (nps_valid[nps_col] >= 9).sum()
-        passives = ((nps_valid[nps_col] >= 7) & (nps_valid[nps_col] <= 8)).sum()
-        detractors = (nps_valid[nps_col] <= 6).sum()
-        
-        promoter_pct = (promoters / nps_valid_count * 100) if nps_valid_count > 0 else 0
-        detractor_pct = (detractors / nps_valid_count * 100) if nps_valid_count > 0 else 0
+        promoters = int((nps_valid[nps_col] >= 9).sum())
+        passives = int(((nps_valid[nps_col] >= 7) & (nps_valid[nps_col] <= 8)).sum())
+        detractors = int((nps_valid[nps_col] <= 6).sum())
+        promoter_pct = promoters / nps_valid_count * 100
+        detractor_pct = detractors / nps_valid_count * 100
         nps = promoter_pct - detractor_pct
-    else:
-        nps = 0
-        promoters = 0
-        passives = 0
-        detractors = 0
-else:
-    nps = 0
-    promoters = 0
-    passives = 0
-    detractors = 0
 
-# ===== COVER CONTENT DISPLAY =====
+# Location Count
+location_count = data[loc_col].nunique() if loc_col and loc_col in data.columns else 5
+
+# Layout Presentation
 st.markdown('<div class="cover-container">', unsafe_allow_html=True)
 
-# Hero Section
-logo_html = render_hero_logo(height=75, style="margin-bottom: 16px;")
+# Hero Block
+try:
+    logo_html = render_hero_logo(height=65, style="margin-bottom: 14px;")
+except Exception:
+    logo_html = ""
 
 st.markdown(
     f"""
 <div class="hero-section">
     {logo_html}
     <h1 class="hero-title">SYNLAB <span class="highlight">Nigeria</span></h1>
-    <p class="hero-subtitle">Market Research & Brand Health Dashboard</p>
+    <p class="hero-subtitle">Market Research and Brand Health Intelligence</p>
     <div class="hero-divider"></div>
     <div class="hero-meta">
         <div class="hero-meta-item">
             <span class="hero-meta-value">Abuja</span>
-            <span class="hero-meta-label">Market</span>
+            <span class="hero-meta-label">Primary Market</span>
         </div>
         <div class="hero-meta-item">
-            <span class="hero-meta-value">2026</span>
-            <span class="hero-meta-label">Year</span>
-        </div>
-        <div class="hero-meta-item">
-            <span class="hero-meta-value">5</span>
-            <span class="hero-meta-label">Locations</span>
+            <span class="hero-meta-value">{location_count}</span>
+            <span class="hero-meta-label">Survey Locations</span>
         </div>
         <div class="hero-meta-item">
             <span class="hero-meta-value">{total}</span>
-            <span class="hero-meta-label">Respondents</span>
+            <span class="hero-meta-label">Validated Respondents</span>
+        </div>
+        <div class="hero-meta-item">
+            <span class="hero-meta-value">{conversion_rate:.1f}%</span>
+            <span class="hero-meta-label">Aware-to-Used Conversion</span>
         </div>
     </div>
 </div>
@@ -408,125 +386,123 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# High-Level KPI Row
-aware_count = int(data[aware_col].sum())
-used_count = int(data[used_col].sum())
+# KPI Cards
+nps_badge_html = (
+    '<span class="status-badge">Needs Attention</span>'
+    if nps < 0
+    else '<span class="status-badge neutral">Positive</span>'
+)
 
 st.markdown(
     f"""
 <div class="kpi-row">
     <div class="kpi-card">
         <div class="kpi-value">{total}</div>
-        <div class="kpi-label">Total Surveyed</div>
-        <div class="kpi-trend">📍 5 Core Locations</div>
+        <div class="kpi-label">Total Respondents</div>
+        <div class="kpi-subtext">Abuja Metro Coverage</div>
     </div>
     <div class="kpi-card">
-        <div class="kpi-value">{awareness:.1f}%</div>
+        <div class="kpi-value">{awareness_pct:.1f}%</div>
         <div class="kpi-label">Brand Awareness</div>
-        <div class="kpi-trend">↑ {aware_count} Aware</div>
+        <div class="kpi-subtext">{aware_count} of {total} aware</div>
     </div>
     <div class="kpi-card">
-        <div class="kpi-value">{usage:.1f}%</div>
-        <div class="kpi-label">Usage Rate</div>
-        <div class="kpi-trend">↑ {used_count} Active Users</div>
+        <div class="kpi-value">{usage_pct:.1f}%</div>
+        <div class="kpi-label">Market Usage Rate</div>
+        <div class="kpi-subtext">{used_count} active users</div>
     </div>
     <div class="kpi-card">
-        <div class="kpi-value" style="color: #003765;">{nps:.1f}</div>
+        <div class="kpi-value">{nps:.1f}</div>
         <div class="kpi-label">Net Promoter Score</div>
-        <div class="kpi-trend"><span class="status-badge status-attention">Needs Attention</span></div>
+        <div class="kpi-subtext">{nps_badge_html}</div>
     </div>
 </div>
 """,
     unsafe_allow_html=True,
 )
 
-# Strategic Callouts
+# Executive Insights
 st.markdown(
     f"""
 <div class="insights-row">
     <div class="insight-card">
-        <div class="insight-number">01</div>
-        <div class="insight-title">Awareness-Usage Gap</div>
-        <div class="insight-desc">
-            A <strong>{awareness_gap:.1f}%</strong> conversion gap exists between aware respondents ({aware_count}) and active users ({used_count}).
+        <div>
+            <div class="insight-header">
+                <span class="insight-number">01</span>
+                <span class="insight-title">Conversion Opportunity</span>
+            </div>
+            <p class="insight-desc">
+                SYNLAB commands a <strong>{awareness_pct:.1f}%</strong> awareness rate with <strong>{usage_pct:.1f}%</strong> usage. 
+                A <strong>{conversion_gap:.1f}%</strong> gap represents <strong>{aware_count - used_count}</strong> aware prospects yet to convert.
+            </p>
         </div>
-        <span class="insight-tag">🎯 Conversion Opportunity</span>
+        <span class="insight-tag">Commercial Funnel</span>
     </div>
     <div class="insight-card">
-        <div class="insight-number">02</div>
-        <div class="insight-title">Detractor Mitigation</div>
-        <div class="insight-desc">
-            NPS stands at <strong>{nps:.1f}</strong> with <strong>{detractor_pct:.1f}%</strong> detractors ({detractors}). Converting <strong>{passives}</strong> passive respondents is key to growth.
+        <div>
+            <div class="insight-header">
+                <span class="insight-number">02</span>
+                <span class="insight-title">Detractor and Passive Profile</span>
+            </div>
+            <p class="insight-desc">
+                NPS is currently <strong>{nps:.1f}</strong> with <strong>{detractors}</strong> detractors ({detractor_pct:.1f}%) and <strong>{passives}</strong> passives. 
+                Addressing turnaround times and pricing transparency can shift passives into promoters.
+            </p>
         </div>
-        <span class="insight-tag">📈 Retention Focus</span>
+        <span class="insight-tag">Customer Experience</span>
     </div>
     <div class="insight-card">
-        <div class="insight-number">03</div>
-        <div class="insight-title">Geographic Expansion</div>
-        <div class="insight-desc">
-            <strong>Wuse</strong> leads market usage, while <strong>Gwagwalada</strong> presents a high-potential market for targeted campaigns.
+        <div>
+            <div class="insight-header">
+                <span class="insight-number">03</span>
+                <span class="insight-title">Geographic Prioritization</span>
+            </div>
+            <p class="insight-desc">
+                <strong>Gwarimpa</strong> and <strong>Wuse</strong> exhibit high usage efficiency, while <strong>Asokoro</strong> and <strong>Gwagwalada</strong> 
+                present untapped upside through physician referral alignment.
+            </p>
         </div>
-        <span class="insight-tag">📍 Geographic Strategy</span>
+        <span class="insight-tag">Territory Strategy</span>
     </div>
 </div>
 """,
     unsafe_allow_html=True,
 )
 
-# Navigation Section
-st.markdown(
-    '<p style="font-size: 16px; font-weight: 700; color: #003765; margin: 8px 0 16px 0;">📑 Dashboard Navigation</p>',
-    unsafe_allow_html=True,
-)
+# Navigation
+st.markdown('<div class="nav-header">Dashboard Modules</div>', unsafe_allow_html=True)
 
 nav_col1, nav_col2, nav_col3, nav_col4, nav_col5 = st.columns(5)
 
 with nav_col1:
-    if st.button(
-        "📈 Overview", use_container_width=True, key="cover_nav_overview"
-    ):
+    if st.button("Executive Overview", use_container_width=True, key="cover_nav_overview"):
         st.switch_page("pages/1_Executive_Overview.py")
 
 with nav_col2:
-    if st.button(
-        "🏷️ Brand Health", use_container_width=True, key="cover_nav_brand"
-    ):
+    if st.button("Brand Health", use_container_width=True, key="cover_nav_brand"):
         st.switch_page("pages/2_Brand_Health.py")
 
 with nav_col3:
-    if st.button(
-        "👥 Customer Insights",
-        use_container_width=True,
-        key="cover_nav_insights",
-    ):
+    if st.button("Customer Insights", use_container_width=True, key="cover_nav_insights"):
         st.switch_page("pages/3_Customer_Insights.py")
 
 with nav_col4:
-    if st.button(
-        "⚔️ Competitive Intel", use_container_width=True, key="cover_nav_comp"
-    ):
+    if st.button("Competitive Intelligence", use_container_width=True, key="cover_nav_comp"):
         st.switch_page("pages/4_Competitive_Intelligence.py")
 
 with nav_col5:
-    if st.button(
-        "💡 Strategic Analytics",
-        use_container_width=True,
-        key="cover_nav_strat",
-    ):
+    if st.button("Strategic Analytics", use_container_width=True, key="cover_nav_strat"):
         st.switch_page("pages/5_Strategic_Analytics.py")
 
 # Footer
 st.markdown(
     f"""
 <div class="cover-footer">
-    <strong>SYNLAB Nigeria</strong> · Strategic Market Intelligence Report
+    <strong>SYNLAB Nigeria</strong> · Market Intelligence Platform
     <span class="separator">|</span>
-    {total} Respondents · 5 Locations · Abuja Focus
-    <br>
-    <span style="font-size: 11px; opacity: 0.75;">Research and Analysis carried out by Kinetiq Growth Lab for SYNLAB Nigeria</span>
+    {total} Surveyed Records · Comprehensive Abuja Metropolitan Analysis
+</div>
 </div>
 """,
     unsafe_allow_html=True,
 )
-
-st.markdown("</div>", unsafe_allow_html=True)
