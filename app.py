@@ -292,9 +292,13 @@ st.markdown(
 @st.cache_data
 def load_data():
     possible_paths = [
+        "data/synlab_clean_standardized.csv",
+        "synlab_clean_standardized.csv",
+        "/data/synlab_clean_standardized.csv",
+        "../synlab_clean_standardized.csv",
         "data/synlab_clean.csv",
         "synlab_clean.csv",
-        "../data/synlab_clean.csv",
+        "/data/synlab_clean.csv",
         "../synlab_clean.csv",
     ]
     for path in possible_paths:
@@ -311,25 +315,62 @@ if data.empty:
     )
     st.stop()
 
+# ===== DETECT COLUMN NAMES DYNAMICALLY =====
+def find_column(df, patterns):
+    """Find a column that matches any of the patterns"""
+    for pattern in patterns:
+        for col in df.columns:
+            if pattern.lower() in col.lower():
+                return col
+    return None
+
+# Find SYNLAB awareness column
+aware_col = find_column(data, ['synlab', 'aware_synlab'])
+used_col = find_column(data, ['synlab', 'used_synlab'])
+nps_col = find_column(data, ['nps_score', 'recommend synlab'])
+impression_col = find_column(data, ['impression', 'overall_impression'])
+
+if aware_col is None or used_col is None:
+    st.error("⚠️ Required SYNLAB awareness/usage columns not found in the data.")
+    st.write("Available columns:", data.columns.tolist())
+    st.stop()
+
 # ===== CALCULATE VERIFIED METRICS =====
 total = len(data)
-awareness = (data["aware_synlab"].sum() / total) * 100 if total > 0 else 0
-usage = (data["used_synlab"].sum() / total) * 100 if total > 0 else 0
+
+# Convert to numeric if needed
+data[aware_col] = pd.to_numeric(data[aware_col], errors='coerce').fillna(0)
+data[used_col] = pd.to_numeric(data[used_col], errors='coerce').fillna(0)
+
+awareness = (data[aware_col].sum() / total) * 100 if total > 0 else 0
+usage = (data[used_col].sum() / total) * 100 if total > 0 else 0
 awareness_gap = awareness - usage
 
 # NPS Calculation (Valid Responses)
-nps_valid = data[data["nps_score"].notna()]
-nps_valid_count = len(nps_valid)
-
-promoters = (nps_valid["nps_segment"] == "Promoter").sum()
-passives = (nps_valid["nps_segment"] == "Passive").sum()
-detractors = (nps_valid["nps_segment"] == "Detractor").sum()
-
-promoter_pct = (promoters / nps_valid_count * 100) if nps_valid_count > 0 else 0
-detractor_pct = (
-    (detractors / nps_valid_count * 100) if nps_valid_count > 0 else 0
-)
-nps = promoter_pct - detractor_pct
+if nps_col:
+    data[nps_col] = pd.to_numeric(data[nps_col], errors='coerce')
+    nps_valid = data[data[nps_col].notna()]
+    nps_valid_count = len(nps_valid)
+    
+    if nps_valid_count > 0:
+        # Create NPS segments
+        promoters = (nps_valid[nps_col] >= 9).sum()
+        passives = ((nps_valid[nps_col] >= 7) & (nps_valid[nps_col] <= 8)).sum()
+        detractors = (nps_valid[nps_col] <= 6).sum()
+        
+        promoter_pct = (promoters / nps_valid_count * 100) if nps_valid_count > 0 else 0
+        detractor_pct = (detractors / nps_valid_count * 100) if nps_valid_count > 0 else 0
+        nps = promoter_pct - detractor_pct
+    else:
+        nps = 0
+        promoters = 0
+        passives = 0
+        detractors = 0
+else:
+    nps = 0
+    promoters = 0
+    passives = 0
+    detractors = 0
 
 # ===== COVER CONTENT DISPLAY =====
 st.markdown('<div class="cover-container">', unsafe_allow_html=True)
@@ -368,6 +409,9 @@ st.markdown(
 )
 
 # High-Level KPI Row
+aware_count = int(data[aware_col].sum())
+used_count = int(data[used_col].sum())
+
 st.markdown(
     f"""
 <div class="kpi-row">
@@ -379,12 +423,12 @@ st.markdown(
     <div class="kpi-card">
         <div class="kpi-value">{awareness:.1f}%</div>
         <div class="kpi-label">Brand Awareness</div>
-        <div class="kpi-trend">↑ {data['aware_synlab'].sum()} Aware</div>
+        <div class="kpi-trend">↑ {aware_count} Aware</div>
     </div>
     <div class="kpi-card">
         <div class="kpi-value">{usage:.1f}%</div>
         <div class="kpi-label">Usage Rate</div>
-        <div class="kpi-trend">↑ {data['used_synlab'].sum()} Active Users</div>
+        <div class="kpi-trend">↑ {used_count} Active Users</div>
     </div>
     <div class="kpi-card">
         <div class="kpi-value" style="color: #003765;">{nps:.1f}</div>
@@ -404,7 +448,7 @@ st.markdown(
         <div class="insight-number">01</div>
         <div class="insight-title">Awareness-Usage Gap</div>
         <div class="insight-desc">
-            A <strong>{awareness_gap:.1f}%</strong> conversion gap exists between aware respondents ({data['aware_synlab'].sum()}) and active users ({data['used_synlab'].sum()}).
+            A <strong>{awareness_gap:.1f}%</strong> conversion gap exists between aware respondents ({aware_count}) and active users ({used_count}).
         </div>
         <span class="insight-tag">🎯 Conversion Opportunity</span>
     </div>
@@ -420,7 +464,7 @@ st.markdown(
         <div class="insight-number">03</div>
         <div class="insight-title">Geographic Expansion</div>
         <div class="insight-desc">
-            <strong>Wuse</strong> leads market usage, while <strong>Gwagwalada</strong> (33.3% awareness) presents a high-potential market for targeted campaigns.
+            <strong>Wuse</strong> leads market usage, while <strong>Gwagwalada</strong> presents a high-potential market for targeted campaigns.
         </div>
         <span class="insight-tag">📍 Geographic Strategy</span>
     </div>
