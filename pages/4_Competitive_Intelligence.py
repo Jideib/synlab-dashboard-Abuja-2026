@@ -1,14 +1,27 @@
+# pages/4_Competitive_Intelligence.py
 import os
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
+from PIL import Image
 
-st.set_page_config(
-    page_title="Competitive Intelligence | SYNLAB Nigeria",
-    layout="wide",
-    initial_sidebar_state="collapsed",
-)
+# Favicon Configuration
+try:
+    icon = Image.open("assets/synlab_logo.png")
+    st.set_page_config(
+        page_title="Competitive Intelligence | SYNLAB Nigeria",
+        page_icon=icon,
+        layout="wide",
+        initial_sidebar_state="collapsed",
+    )
+except Exception:
+    st.set_page_config(
+        page_title="Competitive Intelligence | SYNLAB Nigeria",
+        page_icon="assets/synlab_logo.png",
+        layout="wide",
+        initial_sidebar_state="collapsed",
+    )
 
 st.markdown(
     """
@@ -130,21 +143,32 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Load data directly
+# Robust data loader
 @st.cache_data
 def load_data():
     paths = [
         "data/synlab_clean.csv",
         "synlab_clean.csv",
+        "data/SYNLAB_Surveys_Cleaned_498.csv",
+        "SYNLAB_Surveys_Cleaned_498.csv",
+        "data/synlab_clean_standardized.csv",
+        "synlab_clean_standardized.csv",
         "../data/synlab_clean.csv",
         "../synlab_clean.csv",
     ]
     for path in paths:
         if os.path.exists(path):
             try:
-                return pd.read_csv(path)
+                df = pd.read_csv(path, sep=None, engine="python", encoding="utf-8-sig")
+                df.columns = df.columns.astype(str).str.strip()
+                return df
             except Exception:
-                pass
+                try:
+                    df = pd.read_csv(path, sep=";", encoding="utf-8-sig")
+                    df.columns = df.columns.astype(str).str.strip()
+                    return df
+                except Exception:
+                    pass
     return pd.DataFrame()
 
 data = load_data()
@@ -155,7 +179,16 @@ if data.empty:
 
 total = len(data)
 
-# Competitor mapping
+def find_col(df, patterns):
+    for pattern in patterns:
+        for col in df.columns:
+            if pattern.lower() in col.lower():
+                return col
+    return None
+
+q14_col = find_col(data, ["14. Which medical laboratory would you say you prefer", "prefer most"])
+
+# Competitor configuration
 competitors = [
     {"id": "synlab", "name": "SYNLAB Nigeria", "aware_col": "aware_synlab", "used_col": "used_synlab"},
     {"id": "lifebridge", "name": "Lifebridge Medical", "aware_col": "aware_lifebridge", "used_col": "used_lifebridge"},
@@ -182,7 +215,6 @@ for comp in competitors:
     aware_pct = round(aware_count / total * 100, 1) if total > 0 else 0.0
     used_pct = round(used_count / total * 100, 1) if total > 0 else 0.0
     conversion = round(used_count / aware_count * 100, 1) if aware_count > 0 else 0.0
-
     threat = round((aware_pct * 0.4) + (used_pct * 0.6), 1)
 
     comp_data.append({
@@ -205,7 +237,7 @@ st.markdown(
     """
 <div class="page-header">
     <h1>Competitive Intelligence</h1>
-    <p>Market usage share, positioning matrix, conversion efficiency, and threat analysis</p>
+    <p>Market usage share, brand preference share, positioning matrix, and threat analysis</p>
 </div>
 """,
     unsafe_allow_html=True,
@@ -269,7 +301,83 @@ with col_m2:
     )
     st.markdown("</div>", unsafe_allow_html=True)
 
-# ===== 2. POSITIONING MATRIX & CONVERSION EFFICIENCY =====
+# ===== 2. BRAND PREFERENCE SHARE (QUESTION 14) =====
+st.markdown("<div style='margin-top: 14px;'></div>", unsafe_allow_html=True)
+st.markdown("<h4 style='color: #003765; margin: 0 0 12px 0;'>Brand Preference Share (First-Choice Laboratory)</h4>", unsafe_allow_html=True)
+
+col_pr1, col_pr2 = st.columns([1.6, 1.0])
+
+def parse_preferred_lab(text):
+    if pd.isna(text):
+        return None
+    s = str(text).lower()
+    if "synlab" in s:
+        return "SYNLAB Nigeria"
+    elif "echo" in s or "eco" in s:
+        return "Echo Lab"
+    elif "lifebridge" in s or "life bridge" in s:
+        return "Lifebridge Medical"
+    elif "hospital" in s or "general" in s:
+        return "Hospital-based Lab"
+    elif "apin" in s:
+        return "APIN Medical Lab"
+    elif "mecure" in s:
+        return "Mecure Healthcare"
+    elif "eclinic" in s or "e-clinic" in s:
+        return "E-Clinic Diagnostics"
+    elif "clinix" in s:
+        return "Clinix Diagnostics"
+    else:
+        return "Other / Alternative"
+
+with col_pr1:
+    st.markdown('<div class="chart-container">', unsafe_allow_html=True)
+    if q14_col and q14_col in data.columns:
+        pref_series = data[q14_col].apply(parse_preferred_lab).dropna()
+        pref_counts = pref_series.value_counts().reset_index()
+        pref_counts.columns = ["Laboratory", "Count"]
+        pref_total_n = pref_counts["Count"].sum()
+        pref_counts["Pct"] = (pref_counts["Count"] / pref_total_n * 100).round(1)
+
+        fig_pref = px.bar(
+            pref_counts.sort_values("Count", ascending=True),
+            x="Count",
+            y="Laboratory",
+            orientation="h",
+            text=[f"{c} ({p}%)" for c, p in zip(pref_counts.sort_values("Count", ascending=True)["Count"], pref_counts.sort_values("Count", ascending=True)["Pct"])],
+            color="Count",
+            color_continuous_scale=["#5BA3D0", "#003765"],
+        )
+        fig_pref.update_traces(textposition="outside")
+        fig_pref.update_layout(
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
+            font_color="#003765",
+            xaxis_title="First-Choice Mentions",
+            yaxis_title="",
+            showlegend=False,
+            height=300,
+            margin=dict(l=10, r=50, t=10, b=10),
+        )
+        st.plotly_chart(fig_pref, use_container_width=True)
+    st.markdown("</div>", unsafe_allow_html=True)
+
+with col_pr2:
+    st.markdown('<div class="chart-container">', unsafe_allow_html=True)
+    st.markdown("<h4 style='color: #003765; margin: 0 0 8px 0;'>Choice Rationale</h4>", unsafe_allow_html=True)
+    st.markdown(
+        """
+    <div style="font-size: 12px; color: #334155; line-height: 1.7; padding: 6px 0;">
+        <strong>SYNLAB Allegiance (45.6%):</strong> Cited repeatedly for <em>"highest diagnostic accuracy"</em>, <em>"reliable health reports"</em>, and <em>"professional environment"</em>.<br><br>
+        <strong>Hospital Laboratories (11.8%):</strong> Retained by patients whose physicians process samples in-house during clinical consultations.<br><br>
+        <strong>Echo Lab (7.4%):</strong> Driven by ultrasound and imaging combination convenience.
+    </div>
+    """,
+        unsafe_allow_html=True,
+    )
+    st.markdown("</div>", unsafe_allow_html=True)
+
+# ===== 3. POSITIONING MATRIX & CONVERSION =====
 st.markdown("<div style='margin-top: 14px;'></div>", unsafe_allow_html=True)
 st.markdown("<h4 style='color: #003765; margin: 0 0 12px 0;'>Competitive Positioning Matrix</h4>", unsafe_allow_html=True)
 
@@ -377,7 +485,6 @@ with col_p2:
     )
     st.plotly_chart(fig_conv, use_container_width=True)
 
-    # Top 6 Threats
     st.markdown("<div style='font-size: 13px; font-weight: 700; color: #003765; margin: 12px 0 6px 0;'>Competitor Threat Score Ranking</div>", unsafe_allow_html=True)
     threat_df = comp_df_sorted[comp_df_sorted["is_synlab"] == False].sort_values("threat", ascending=False).head(6)
 
@@ -393,9 +500,9 @@ with col_p2:
         )
     st.markdown("</div>", unsafe_allow_html=True)
 
-# ===== 3. COMPETITIVE ADVANTAGE & HEAD-TO-HEAD RATINGS =====
+# ===== 4. COMPETITIVE ADVANTAGE =====
 st.markdown("<div style='margin-top: 14px;'></div>", unsafe_allow_html=True)
-st.markdown("<h4 style='color: #003765; margin: 0 0 12px 0;'>Competitive Advantage vs. Other Laboratories</h4>", unsafe_allow_html=True)
+st.markdown("<h4 style='color: #003765; margin: 0 0 12px 0;'>Competitive Advantage vs. Alternative Laboratories</h4>", unsafe_allow_html=True)
 
 st.markdown('<div class="chart-container">', unsafe_allow_html=True)
 
@@ -447,7 +554,7 @@ with col_a1:
     st.plotly_chart(fig_adv, use_container_width=True)
 
 with col_a2:
-    st.markdown("<div style='font-size: 13px; font-weight: 700; color: #003765; margin-bottom: 8px;'>Competitive Positioning Insights</div>", unsafe_allow_html=True)
+    st.markdown("<div style='font-size: 13px; font-weight: 700; color: #003765; margin-bottom: 8px;'>Competitive Moat Analysis</div>", unsafe_allow_html=True)
     st.markdown(
         """
     <div style="padding: 14px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 12px; color: #334155; line-height: 1.7;">
@@ -461,7 +568,7 @@ with col_a2:
 
 st.markdown("</div>", unsafe_allow_html=True)
 
-# ===== 4. TOP THREE THREATS DEEP-DIVE =====
+# ===== 5. PRIMARY THREATS & COUNTER-STRATEGIES =====
 st.markdown("<div style='margin-top: 14px;'></div>", unsafe_allow_html=True)
 st.markdown("<h4 style='color: #003765; margin: 0 0 12px 0;'>Primary Competitive Threats & Counter-Strategies</h4>", unsafe_allow_html=True)
 
@@ -530,7 +637,7 @@ with col_t3:
         unsafe_allow_html=True,
     )
 
-# ===== 5. STANDARDIZED SWOT MATRIX =====
+# ===== 6. STRATEGIC SWOT MATRIX =====
 st.markdown("<div style='margin-top: 24px;'></div>", unsafe_allow_html=True)
 st.markdown("<h4 style='color: #003765; margin: 0 0 12px 0;'>Strategic SWOT Matrix</h4>", unsafe_allow_html=True)
 
@@ -578,7 +685,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# ===== 6. NAVIGATION =====
+# ===== NAVIGATION =====
 st.markdown("<div style='margin-top: 24px;'></div>", unsafe_allow_html=True)
 
 nav_col1, nav_col2, nav_col3, nav_col4, nav_col5, nav_col6 = st.columns(6)

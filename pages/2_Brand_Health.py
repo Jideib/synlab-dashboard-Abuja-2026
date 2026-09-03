@@ -1,16 +1,28 @@
-
+# pages/2_Brand_Health.py
 import os
 import re
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
+from PIL import Image
 
-st.set_page_config(
-    page_title="Brand Health | SYNLAB Nigeria",
-    layout="wide",
-    initial_sidebar_state="collapsed",
-)
+# Favicon Configuration
+try:
+    icon = Image.open("assets/synlab_logo.png")
+    st.set_page_config(
+        page_title="Brand Health | SYNLAB Nigeria",
+        page_icon=icon,
+        layout="wide",
+        initial_sidebar_state="collapsed",
+    )
+except Exception:
+    st.set_page_config(
+        page_title="Brand Health | SYNLAB Nigeria",
+        page_icon="assets/synlab_logo.png",
+        layout="wide",
+        initial_sidebar_state="collapsed",
+    )
 
 st.markdown(
     """
@@ -58,6 +70,7 @@ st.markdown(
         padding: 20px;
         border: 1px solid var(--synlab-border);
         margin-bottom: 20px;
+        height: 100%;
     }
 
     .funnel-container {
@@ -163,21 +176,32 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Load data directly
+# Robust data loader
 @st.cache_data
 def load_data():
     paths = [
         "data/synlab_clean.csv",
         "synlab_clean.csv",
+        "data/SYNLAB_Surveys_Cleaned_498.csv",
+        "SYNLAB_Surveys_Cleaned_498.csv",
+        "data/synlab_clean_standardized.csv",
+        "synlab_clean_standardized.csv",
         "../data/synlab_clean.csv",
         "../synlab_clean.csv",
     ]
     for path in paths:
         if os.path.exists(path):
             try:
-                return pd.read_csv(path)
+                df = pd.read_csv(path, sep=None, engine="python", encoding="utf-8-sig")
+                df.columns = df.columns.astype(str).str.strip()
+                return df
             except Exception:
-                pass
+                try:
+                    df = pd.read_csv(path, sep=";", encoding="utf-8-sig")
+                    df.columns = df.columns.astype(str).str.strip()
+                    return df
+                except Exception:
+                    pass
     return pd.DataFrame()
 
 data = load_data()
@@ -185,6 +209,43 @@ data = load_data()
 if data.empty:
     st.error("Data file not found. Please ensure synlab_clean.csv is located in the data directory.")
     st.stop()
+
+def find_col(df, patterns):
+    for pattern in patterns:
+        for col in df.columns:
+            if pattern.lower() in col.lower():
+                return col
+    return None
+
+aware_col = find_col(data, ["aware_synlab", "aware of?/synlab"])
+used_col = find_col(data, ["used_synlab", "used the services of any of the following laboratories?/synlab"])
+nps_col = find_col(data, ["nps_score", "recommend"])
+tom_col = find_col(data, ["top_of_mind_lab", "first mind"])
+q8_col = find_col(data, ["8. How did you first hear", "first hear about synlab"])
+
+total = len(data)
+data[aware_col] = pd.to_numeric(data[aware_col], errors="coerce").fillna(0)
+data[used_col] = pd.to_numeric(data[used_col], errors="coerce").fillna(0)
+aware = int(data[aware_col].sum())
+used = int(data[used_col].sum())
+
+# NPS strictly on valid non-null responses
+promoters = passives = detractors = 0
+promoter_pct = passive_pct = detractor_pct = nps = 0.0
+nps_valid_count = 0
+
+if nps_col and nps_col in data.columns:
+    data[nps_col] = pd.to_numeric(data[nps_col], errors="coerce")
+    nps_sub = data[data[nps_col].notna()]
+    nps_valid_count = len(nps_sub)
+    if nps_valid_count > 0:
+        promoters = int((nps_sub[nps_col] >= 9).sum())
+        passives = int(((nps_sub[nps_col] >= 7) & (nps_sub[nps_col] <= 8)).sum())
+        detractors = int((nps_sub[nps_col] <= 6).sum())
+        promoter_pct = round((promoters / nps_valid_count * 100), 1)
+        passive_pct = round((passives / nps_valid_count * 100), 1)
+        detractor_pct = round((detractors / nps_valid_count * 100), 1)
+        nps = round(promoter_pct - detractor_pct, 1)
 
 def clean_tom(x):
     if pd.isna(x):
@@ -223,41 +284,20 @@ def clean_tom(x):
         return "Clinix Diagnostics"
     return s[:25]
 
-# Calculations
-total = len(data)
-data["aware_synlab"] = pd.to_numeric(data["aware_synlab"], errors="coerce").fillna(0)
-data["used_synlab"] = pd.to_numeric(data["used_synlab"], errors="coerce").fillna(0)
-aware = int(data["aware_synlab"].sum())
-used = int(data["used_synlab"].sum())
-
-# NPS strictly on valid responses
-data["nps_score"] = pd.to_numeric(data["nps_score"], errors="coerce")
-nps_valid = data[data["nps_score"].notna()]
-nps_valid_count = len(nps_valid)
-
-promoters = int((nps_valid["nps_score"] >= 9).sum())
-passives = int(((nps_valid["nps_score"] >= 7) & (nps_valid["nps_score"] <= 8)).sum())
-detractors = int((nps_valid["nps_score"] <= 6).sum())
-
-promoter_pct = round((promoters / nps_valid_count * 100), 1) if nps_valid_count > 0 else 0.0
-passive_pct = round((passives / nps_valid_count * 100), 1) if nps_valid_count > 0 else 0.0
-detractor_pct = round((detractors / nps_valid_count * 100), 1) if nps_valid_count > 0 else 0.0
-nps = round(promoter_pct - detractor_pct, 1)
-
 # Header
 st.markdown(
     """
 <div class="page-header">
     <h1>Brand Health and Awareness</h1>
-    <p>Conversion funnel, top-of-mind recall, regional Net Promoter Scores, and customer experience touchpoints</p>
+    <p>Conversion funnel, customer acquisition channels, regional Net Promoter Scores, and touchpoint perception</p>
 </div>
 """,
     unsafe_allow_html=True,
 )
 
-# ===== 1. FUNNEL & DROP-OFF CALLOUTS =====
+# ===== 1. FUNNEL & CONVERSION DROPOFF =====
 st.markdown('<div class="funnel-container">', unsafe_allow_html=True)
-st.markdown("<h4 style='color: #003765; margin: 0 0 12px 0;'>Brand Funnel Conversion</h4>", unsafe_allow_html=True)
+st.markdown("""<h4 style="color: #003765; margin: 0 0 12px 0;">Brand Conversion Funnel</h4>""", unsafe_allow_html=True)
 
 funnel_steps = [
     {"label": "Total Surveyed", "count": total, "pct": "100.0%", "step": "step-1"},
@@ -290,22 +330,24 @@ st.markdown(
     <span style="font-size: 13px; color: #003765; font-weight: 600;">{used_to_promoters_dropoff}% Drop-off (Used to Promoters)</span>
 </div>
 <div style="margin-top: 12px; padding: 12px 16px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; text-align: center;">
-    <span style="font-size: 13px; color: #003765;">Conversion Opportunity: {aware - used} aware respondents have not utilized SYNLAB ({round((aware - used)/total*100, 1)}% of total respondents).</span>
+    <span style="font-size: 13px; color: #003765;">Conversion Opportunity: <strong>{aware - used}</strong> aware respondents have not utilized SYNLAB ({round((aware - used)/total*100, 1)}% of total respondents).</span>
 </div>
 """,
     unsafe_allow_html=True,
 )
 st.markdown("</div>", unsafe_allow_html=True)
 
-# ===== 2. AWARENESS BREAKDOWN & TOP OF MIND WITH PROGRESS BARS =====
+# ===== 2. AWARENESS BREAKDOWN & ACQUISITION (QUESTION 8) =====
 col1, col2 = st.columns(2)
 
 with col1:
     st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-    st.markdown("<h4 style='color: #003765; margin: 0 0 12px 0;'>Awareness Breakdown</h4>", unsafe_allow_html=True)
+    st.markdown("""<h4 style="color: #003765; margin: 0 0 12px 0;">Awareness Breakdown</h4>""", unsafe_allow_html=True)
 
-    tom_series = data["top_of_mind_lab"].dropna().astype(str).str.lower()
-    synlab_unaided = int(tom_series.str.contains("synlab", na=False).sum())
+    synlab_unaided = 0
+    if tom_col and tom_col in data.columns:
+        tom_series = data[tom_col].dropna().astype(str).str.lower()
+        synlab_unaided = int(tom_series.str.contains("synlab", na=False).sum())
     unaided_pct = round((synlab_unaided / total) * 100, 1)
     aided_pct = round((aware / total) * 100, 1)
 
@@ -314,7 +356,7 @@ with col1:
         "Percentage": [unaided_pct, aided_pct],
     })
 
-    fig = px.bar(
+    fig_aware = px.bar(
         awareness_df,
         x="Percentage",
         y="Type",
@@ -324,8 +366,8 @@ with col1:
         color_continuous_scale=["#5BA3D0", "#003765"],
         text="Percentage",
     )
-    fig.update_traces(texttemplate="%{text:.1f}%", textposition="outside", width=0.4)
-    fig.update_layout(
+    fig_aware.update_traces(texttemplate="%{text:.1f}%", textposition="outside", width=0.4)
+    fig_aware.update_layout(
         plot_bgcolor="rgba(0,0,0,0)",
         paper_bgcolor="rgba(0,0,0,0)",
         font_color="#003765",
@@ -336,114 +378,103 @@ with col1:
         height=180,
         margin=dict(l=10, r=40, t=30, b=10),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig_aware, use_container_width=True)
 
-    st.markdown("<div style='font-size: 13px; font-weight: 700; color: #003765; margin: 12px 0 8px 0;'>Top of Mind Mentions (Unaided Recall)</div>", unsafe_allow_html=True)
+    st.markdown("""<div style="font-size: 13px; font-weight: 700; color: #003765; margin: 12px 0 8px 0;">Top of Mind Mentions (Unaided Recall)</div>""", unsafe_allow_html=True)
 
-    data["top_of_mind_clean"] = data["top_of_mind_lab"].apply(clean_tom)
-    tom_freq = data["top_of_mind_clean"].dropna().value_counts().head(5)
+    if tom_col and tom_col in data.columns:
+        data["top_of_mind_clean"] = data[tom_col].apply(clean_tom)
+        tom_freq = data["top_of_mind_clean"].dropna().value_counts().head(5)
 
-    if not tom_freq.empty:
-        colors = ["#003765", "#0077AD", "#205295", "#2C8FC7", "#5BA3D0"]
-        max_count = tom_freq.iloc[0]
+        if not tom_freq.empty:
+            colors = ["#003765", "#0077AD", "#205295", "#2C8FC7", "#5BA3D0"]
+            max_count = tom_freq.iloc[0]
 
-        for i, (lab, count) in enumerate(tom_freq.items()):
-            is_synlab = "synlab" in str(lab).lower()
-            color = colors[i] if i < len(colors) else "#64748b"
-            weight = "700" if is_synlab else "500"
-            pct = round(count / total * 100, 1)
-            bar_width = round((count / max_count) * 100, 1)
+            for i, (lab, count) in enumerate(tom_freq.items()):
+                is_synlab = "synlab" in str(lab).lower()
+                color = colors[i] if i < len(colors) else "#64748b"
+                weight = "700" if is_synlab else "500"
+                pct = round(count / total * 100, 1)
+                bar_width = round((count / max_count) * 100, 1)
 
-            st.markdown(
-                f"""
-            <div class="tom-item">
-                <span class="lab-name" style="color: {color}; font-weight: {weight};">
-                    {i+1}. {lab}
-                </span>
-                <span class="lab-pct">{pct}% ({count})</span>
-            </div>
-            <div class="tom-bar" style="background: {color}; width: {bar_width}%;"></div>
-            """,
-                unsafe_allow_html=True,
-            )
+                st.markdown(
+                    f"""
+                <div class="tom-item">
+                    <span class="lab-name" style="color: {color}; font-weight: {weight};">
+                        {i+1}. {lab}
+                    </span>
+                    <span class="lab-pct">{pct}% ({count})</span>
+                </div>
+                <div class="tom-bar" style="background: {color}; width: {bar_width}%;"></div>
+                """,
+                    unsafe_allow_html=True,
+                )
     st.markdown("</div>", unsafe_allow_html=True)
 
 with col2:
     st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-    st.markdown("<h4 style='color: #003765; margin: 0 0 12px 0;'>Net Promoter Score (NPS)</h4>", unsafe_allow_html=True)
+    st.markdown("""<h4 style="color: #003765; margin: 0 0 12px 0;">Brand Discovery Channels</h4>""", unsafe_allow_html=True)
 
-    st.markdown(
-        f"""
-    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px;">
-        <div style="background: #003765; border-radius: 8px; padding: 12px; text-align: center; color: white;">
-            <div style="font-size: 20px; font-weight: 700;">{promoter_pct:.1f}%</div>
-            <div style="font-size: 11px; opacity: 0.85;">Promoters ({promoters})</div>
-        </div>
-        <div style="background: #2C8FC7; border-radius: 8px; padding: 12px; text-align: center; color: white;">
-            <div style="font-size: 20px; font-weight: 700;">{passive_pct:.1f}%</div>
-            <div style="font-size: 11px; opacity: 0.85;">Passives ({passives})</div>
-        </div>
-        <div style="background: #7CB8D3; border-radius: 8px; padding: 12px; text-align: center; color: #003765;">
-            <div style="font-size: 20px; font-weight: 700;">{detractor_pct:.1f}%</div>
-            <div style="font-size: 11px; opacity: 0.85;">Detractors ({detractors})</div>
-        </div>
-    </div>
-    """,
-        unsafe_allow_html=True,
-    )
+    if q8_col and q8_col in data.columns:
+        q8_counts = data[q8_col].dropna().value_counts().reset_index()
+        q8_counts.columns = ["Channel", "Count"]
+        q8_total = q8_counts["Count"].sum()
+        q8_counts["Pct"] = (q8_counts["Count"] / q8_total * 100).round(1)
 
-    nps_badge = "status-neg" if nps < 0 else "status-pos"
-    nps_status = "Needs Attention" if nps < 0 else "Positive"
+        fig_q8 = px.bar(
+            q8_counts.sort_values("Count", ascending=True),
+            x="Count",
+            y="Channel",
+            orientation="h",
+            text=[f"{c} ({p}%)" for c, p in zip(q8_counts.sort_values("Count", ascending=True)["Count"], q8_counts.sort_values("Count", ascending=True)["Pct"])],
+            color="Count",
+            color_continuous_scale=["#5BA3D0", "#003765"],
+        )
+        fig_q8.update_traces(textposition="outside")
+        fig_q8.update_layout(
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
+            font_color="#003765",
+            xaxis_title="Respondents",
+            yaxis_title="",
+            showlegend=False,
+            height=320,
+            margin=dict(l=10, r=50, t=10, b=10),
+        )
+        st.plotly_chart(fig_q8, use_container_width=True)
 
-    st.markdown(
-        f"""
-    <div style="display: flex; align-items: center; justify-content: space-between; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px 16px; margin-bottom: 8px;">
-        <div>
-            <div style="font-size: 11px; color: #64748b; font-weight: 600; text-transform: uppercase;">NET PROMOTER SCORE</div>
-            <div style="font-size: 28px; font-weight: 700; color: #003765;">{nps:.1f}</div>
+        top_channel = q8_counts.iloc[0]
+        st.markdown(
+            f"""
+        <div style="margin-top: 8px; padding: 10px 14px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 6px; font-size: 11.5px; color: #475569;">
+            Acquisition Driver: <strong>{top_channel['Channel']}</strong> accounts for <strong>{top_channel['Pct']}%</strong> of discovery, followed by clinical doctor referrals (22.7%).
         </div>
-        <div>
-            <span class="status-badge {nps_badge}">{nps_status}</span>
-            <div style="font-size: 11px; color: #64748B; margin-top: 3px;">{nps_valid_count} valid responses</div>
-        </div>
-    </div>
-    <div style="padding: 10px 16px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px;">
-        <span style="font-size: 12px; color: #003765;">Strategic Conversion: Converting {passives} Passives ({passive_pct:.1f}%) into Promoters will elevate the overall NPS score above zero.</span>
-    </div>
-    """,
-        unsafe_allow_html=True,
-    )
+        """,
+            unsafe_allow_html=True,
+        )
     st.markdown("</div>", unsafe_allow_html=True)
 
-# ===== 3. NPS ACROSS 5 MAJOR LOCATIONS (CARDS + BAR) =====
+# ===== 3. NPS ACROSS 5 MAJOR LOCATIONS =====
 st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-st.markdown("<h4 style='color: #003765; margin: 0 0 12px 0;'>NPS Performance Across 5 Major Locations</h4>", unsafe_allow_html=True)
+st.markdown("""<h4 style="color: #003765; margin: 0 0 12px 0;">NPS Performance Across 5 Major Locations</h4>""", unsafe_allow_html=True)
 
 major_locs = ["Kubwa", "Wuse", "Gwarimpa", "Asokoro", "Gwagwalada"]
 location_nps = []
 
 for loc in major_locs:
-    loc_data = data[data["location"] == loc]
-    loc_nps_valid = loc_data[loc_data["nps_score"].notna()]
+    loc_data = data[data["location"] == loc] if "location" in data.columns else pd.DataFrame()
+    loc_nps_valid = loc_data[loc_data[nps_col].notna()] if nps_col and not loc_data.empty else pd.DataFrame()
     loc_total = len(loc_nps_valid)
 
     if loc_total > 0:
-        loc_p = (loc_nps_valid["nps_score"] >= 9).sum()
-        loc_d = (loc_nps_valid["nps_score"] <= 6).sum()
+        loc_p = (loc_nps_valid[nps_col] >= 9).sum()
+        loc_d = (loc_nps_valid[nps_col] <= 6).sum()
         loc_nps_score = round(((loc_p - loc_d) / loc_total * 100), 1)
     else:
         loc_nps_score = 0.0
 
-    loc_aware = (
-        round((loc_data["aware_synlab"].sum() / len(loc_data) * 100), 1)
-        if len(loc_data) > 0
-        else 0.0
-    )
-    loc_used = (
-        round((loc_data["used_synlab"].sum() / len(loc_data) * 100), 1)
-        if len(loc_data) > 0
-        else 0.0
-    )
+    loc_aware = round((loc_data[aware_col].sum() / len(loc_data) * 100), 1) if len(loc_data) > 0 else 0.0
+    loc_used = round((loc_data[used_col].sum() / len(loc_data) * 100), 1) if len(loc_data) > 0 else 0.0
 
     location_nps.append({
         "Location": loc,
@@ -505,11 +536,11 @@ st.markdown("</div>", unsafe_allow_html=True)
 
 # ===== 4. CX METRICS RADAR & SUMMARY PROGRESS BARS =====
 st.markdown(
-    '<h4 style="color: #003765; margin: 0 0 12px 0;">Customer Experience (CX) Ratings</h4>',
+    """<h4 style="color: #003765; margin: 0 0 12px 0;">Customer Experience (CX) Ratings</h4>""",
     unsafe_allow_html=True,
 )
 
-col1, col2 = st.columns([1.6, 1.4])
+col_cx1, col_cx2 = st.columns([1.6, 1.4])
 
 cx_cols_map = {
     "cx_access_alt": "Access",
@@ -540,7 +571,7 @@ for col_name, label in cx_cols_map.items():
 
 cx_df = pd.DataFrame(cx_scores)
 
-with col1:
+with col_cx1:
     st.markdown('<div class="chart-container">', unsafe_allow_html=True)
     if not cx_df.empty and len(cx_df) >= 3:
         fig_radar = go.Figure()
@@ -579,9 +610,9 @@ with col1:
         st.plotly_chart(fig_radar, use_container_width=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
-with col2:
+with col_cx2:
     st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-    st.markdown("<h4 style='color: #003765; margin: 0 0 12px 0;'>CX Summary & Ranking</h4>", unsafe_allow_html=True)
+    st.markdown("""<h4 style="color: #003765; margin: 0 0 12px 0;">CX Summary & Ranking</h4>""", unsafe_allow_html=True)
 
     if not cx_df.empty:
         cx_sorted = cx_df.sort_values("Score", ascending=False)
@@ -621,14 +652,14 @@ with col2:
 # ===== 5. QUALITATIVE SENTIMENT =====
 st.markdown('<div class="chart-container">', unsafe_allow_html=True)
 st.markdown(
-    '<h4 style="color: #003765; margin: 0 0 12px 0;">Qualitative Customer Feedback</h4>',
+    """<h4 style="color: #003765; margin: 0 0 12px 0;">Qualitative Customer Feedback</h4>""",
     unsafe_allow_html=True,
 )
 
-col1, col2 = st.columns([2, 1])
+col_s1, col_s2 = st.columns([2, 1])
 
-with col1:
-    st.markdown("<div style='font-size: 13px; font-weight: 700; color: #003765; margin-bottom: 8px;'>Open-Ended Feedback Quotes</div>", unsafe_allow_html=True)
+with col_s1:
+    st.markdown("""<div style="font-size: 13px; font-weight: 700; color: #003765; margin-bottom: 8px;">Open-Ended Feedback Quotes</div>""", unsafe_allow_html=True)
     st.markdown(
         """
     <div class="sentiment-quote">"SYNLAB Nigeria they are the best in accuracy and diagnostics"</div>
@@ -641,8 +672,8 @@ with col1:
         unsafe_allow_html=True,
     )
 
-with col2:
-    st.markdown("<div style='font-size: 13px; font-weight: 700; color: #003765; margin-bottom: 8px;'>Sentiment Drivers</div>", unsafe_allow_html=True)
+with col_s2:
+    st.markdown("""<div style="font-size: 13px; font-weight: 700; color: #003765; margin-bottom: 8px;">Sentiment Drivers</div>""", unsafe_allow_html=True)
     st.markdown(
         """
     <div style="padding: 12px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px;">
@@ -659,7 +690,7 @@ with col2:
 
 st.markdown("</div>", unsafe_allow_html=True)
 
-# ===== 6. NAVIGATION =====
+# ===== NAVIGATION =====
 st.markdown("<div style='margin-top: 24px;'></div>", unsafe_allow_html=True)
 
 nav_col1, nav_col2, nav_col3, nav_col4, nav_col5, nav_col6 = st.columns(6)

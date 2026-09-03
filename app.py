@@ -500,7 +500,7 @@ st.markdown(
 <div class="cover-footer">
     <strong>SYNLAB Nigeria</strong> · Market Intelligence Platform
     <span class="separator">|</span>
-    {total} Surveyed Records · Comprehensive Abuja Metropolitan Analysis
+    {total} Surveyed Records · Comprehensive Abuja Metropolitan Analysis . Data collected and Analysed by Kinetiq Growth Lab for SYNLAB Nigeria
 </div>
 </div>
 """,

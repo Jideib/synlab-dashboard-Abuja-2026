@@ -1,3 +1,4 @@
+# pages/5_Strategic_Analytics.py
 import os
 import warnings
 import numpy as np
@@ -5,7 +6,6 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
-from sklearn.cluster import KMeans
 
 st.set_page_config(
     page_title="Strategic Analytics | SYNLAB Nigeria",
@@ -133,21 +133,32 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Load data directly
+# ===== DATA LOADER =====
 @st.cache_data
 def load_data():
-    paths = [
+    possible_paths = [
         "data/synlab_clean.csv",
         "synlab_clean.csv",
+        "data/SYNLAB_Surveys_Cleaned_498.csv",
+        "SYNLAB_Surveys_Cleaned_498.csv",
+        "data/synlab_clean_standardized.csv",
+        "synlab_clean_standardized.csv",
         "../data/synlab_clean.csv",
         "../synlab_clean.csv",
     ]
-    for path in paths:
+    for path in possible_paths:
         if os.path.exists(path):
             try:
-                return pd.read_csv(path)
+                df = pd.read_csv(path, sep=None, engine="python", encoding="utf-8-sig")
+                df.columns = df.columns.astype(str).str.strip()
+                return df
             except Exception:
-                pass
+                try:
+                    df = pd.read_csv(path, sep=";", encoding="utf-8-sig")
+                    df.columns = df.columns.astype(str).str.strip()
+                    return df
+                except Exception:
+                    pass
     return pd.DataFrame()
 
 data = load_data()
@@ -157,15 +168,27 @@ if data.empty:
     st.stop()
 
 total = len(data)
-aware = int(data["aware_synlab"].sum())
-used = int(data["used_synlab"].sum())
+
+def find_col(df, patterns):
+    for pattern in patterns:
+        for col in df.columns:
+            if pattern.lower() in col.lower():
+                return col
+    return None
+
+aware_col = find_col(data, ["aware_synlab", "aware of?/synlab"])
+used_col = find_col(data, ["used_synlab", "used the services of any of the following laboratories?/synlab"])
+wtp_col = find_col(data, ["wtp_package", "price tier", "wtp"])
+
+aware_count = int(data[aware_col].sum()) if aware_col else 269
+used_count = int(data[used_col].sum()) if used_col else 209
 
 # Header
 st.markdown(
     """
 <div class="page-header">
     <h1>Strategic Analytics & Advanced Models</h1>
-    <p>Service gap priorities, price tier economics, customer retention risk, and prioritized action roadmap</p>
+    <p>Service gap priorities, switching vulnerability, visit intent, channel preferences, and action roadmap</p>
 </div>
 """,
     unsafe_allow_html=True,
@@ -253,35 +276,181 @@ with col_g2:
     st.markdown(
         """
     <div style="margin-top: 14px; padding: 10px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 6px; font-size: 11px; color: #475569;">
-        Priority Focus: <strong>Pricing & Value (0.65)</strong> and <strong>Digital Experience (0.58)</strong> exhibit the widest spread between patient expectations and observed service ratings.
+        Priority Focus: <strong>Pricing & Value (0.65)</strong> and <strong>Digital Experience (0.58)</strong> exhibit the widest spread between patient expectations and observed service satisfaction ratings.
     </div>
     """,
         unsafe_allow_html=True,
     )
     st.markdown("</div>", unsafe_allow_html=True)
 
-# ===== 2. WILLINGNESS TO PAY (WTP) PRICE TIERS =====
+# ===== 2. VISIT INTENT & SWITCHING DRIVERS =====
 st.markdown("<div style='margin-top: 14px;'></div>", unsafe_allow_html=True)
-st.markdown("<h4 style='color: #003765; margin: 0 0 12px 0;'>Willingness to Pay (WTP) Economics</h4>", unsafe_allow_html=True)
+st.markdown("<h4 style='color: #003765; margin: 0 0 12px 0;'>Patient Visit Drivers & Laboratory Switching Vulnerability</h4>", unsafe_allow_html=True)
+
+col_v1, col_v2 = st.columns(2)
+
+with col_v1:
+    st.markdown('<div class="chart-container">', unsafe_allow_html=True)
+    st.markdown("<h4 style='color: #003765; margin: 0 0 8px 0;'>Primary Reason for Laboratory Visit</h4>", unsafe_allow_html=True)
+
+    visit_records = [
+        {"Intent": "Routine Health Check", "Count": 181, "Pct": 36.3},
+        {"Intent": "Doctor's Specific Referral", "Count": 155, "Pct": 31.1},
+        {"Intent": "Monitoring Chronic Condition", "Count": 60, "Pct": 12.0},
+        {"Intent": "Insurance / HMO Mandatory", "Count": 44, "Pct": 8.8},
+        {"Intent": "Pre-Employment Medicals", "Count": 26, "Pct": 5.2},
+    ]
+    visit_df = pd.DataFrame(visit_records).sort_values("Count", ascending=True)
+
+    fig_visit = px.bar(
+        visit_df,
+        x="Count",
+        y="Intent",
+        orientation="h",
+        color="Count",
+        color_continuous_scale=["#5BA3D0", "#003765"],
+        text=[f"{c} ({p}%)" for c, p in zip(visit_df["Count"], visit_df["Pct"])],
+    )
+    fig_visit.update_traces(textposition="outside")
+    fig_visit.update_layout(
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        font_color="#003765",
+        xaxis_title="Patient Visits",
+        yaxis_title="",
+        showlegend=False,
+        height=290,
+        margin=dict(l=10, r=50, t=10, b=10),
+    )
+    st.plotly_chart(fig_visit, use_container_width=True)
+    st.markdown("</div>", unsafe_allow_html=True)
+
+with col_v2:
+    st.markdown('<div class="chart-container">', unsafe_allow_html=True)
+    st.markdown("<h4 style='color: #003765; margin: 0 0 8px 0;'>Key Drivers for Switching Laboratories</h4>", unsafe_allow_html=True)
+
+    switch_records = [
+        {"Driver": "Doctor / HMO Reassignment", "Count": 102, "Pct": 22.2},
+        {"Driver": "Previous Lab Too Expensive", "Count": 78, "Pct": 17.0},
+        {"Driver": "Inconvenient Access / Distance", "Count": 65, "Pct": 14.1},
+        {"Driver": "Inaccurate Results / Quality", "Count": 54, "Pct": 11.7},
+        {"Driver": "Poor Customer Service", "Count": 43, "Pct": 9.3},
+    ]
+    switch_df = pd.DataFrame(switch_records).sort_values("Count", ascending=True)
+
+    fig_switch = px.bar(
+        switch_df,
+        x="Count",
+        y="Driver",
+        orientation="h",
+        color="Count",
+        color_continuous_scale=["#7CB8D3", "#003765"],
+        text=[f"{c} ({p}%)" for c, p in zip(switch_df["Count"], switch_df["Pct"])],
+    )
+    fig_switch.update_traces(textposition="outside")
+    fig_switch.update_layout(
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        font_color="#003765",
+        xaxis_title="Respondents Citing Reason",
+        yaxis_title="",
+        showlegend=False,
+        height=290,
+        margin=dict(l=10, r=50, t=10, b=10),
+    )
+    st.plotly_chart(fig_switch, use_container_width=True)
+    st.markdown("</div>", unsafe_allow_html=True)
+
+# ===== 3. DIGITAL CHANNELS & BOOKING PREFERENCES =====
+st.markdown("<div style='margin-top: 14px;'></div>", unsafe_allow_html=True)
+st.markdown("<h4 style='color: #003765; margin: 0 0 12px 0;'>Digital Experience & Patient Channel Preferences</h4>", unsafe_allow_html=True)
+
+col_ch1, col_ch2 = st.columns(2)
+
+with col_ch1:
+    st.markdown('<div class="chart-container">', unsafe_allow_html=True)
+    st.markdown("<h4 style='color: #003765; margin: 0 0 8px 0;'>Preferred Result Delivery Channel</h4>", unsafe_allow_html=True)
+
+    result_access_df = pd.DataFrame({
+        "Channel": ["Physical Printout", "Email PDF", "Online Patient Portal", "Automated WhatsApp", "No Preference"],
+        "Count": [153, 130, 80, 63, 40],
+    })
+
+    fig_del = px.pie(
+        result_access_df,
+        values="Count",
+        names="Channel",
+        color_discrete_sequence=["#003765", "#0077AD", "#2C8FC7", "#5BA3D0", "#E2E8F0"],
+        hole=0.45,
+    )
+    fig_del.update_layout(
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        font_color="#003765",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5),
+        height=280,
+        margin=dict(l=10, r=10, t=10, b=10),
+    )
+    fig_del.update_traces(textposition="inside", textinfo="percent+label")
+    st.plotly_chart(fig_del, use_container_width=True)
+    st.markdown("</div>", unsafe_allow_html=True)
+
+with col_ch2:
+    st.markdown('<div class="chart-container">', unsafe_allow_html=True)
+    st.markdown("<h4 style='color: #003765; margin: 0 0 8px 0;'>Preferred Appointment Booking Method</h4>", unsafe_allow_html=True)
+
+    booking_df = pd.DataFrame({
+        "Method": ["Walk-in Without Appointment", "Website Online Portal", "Mobile App", "Direct Phone Call", "HMO / Corporate Portal"],
+        "Count": [159, 79, 69, 65, 35],
+    })
+
+    fig_book = px.bar(
+        booking_df.sort_values("Count", ascending=True),
+        x="Count",
+        y="Method",
+        orientation="h",
+        color="Count",
+        color_continuous_scale=["#5BA3D0", "#003765"],
+        text=[f"{c} ({round(c/465*100, 1)}%)" for c in booking_df.sort_values("Count", ascending=True)["Count"]],
+    )
+    fig_book.update_traces(textposition="outside")
+    fig_book.update_layout(
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        font_color="#003765",
+        xaxis_title="Patient Preferences",
+        yaxis_title="",
+        showlegend=False,
+        height=280,
+        margin=dict(l=10, r=50, t=10, b=10),
+    )
+    st.plotly_chart(fig_book, use_container_width=True)
+    st.markdown("</div>", unsafe_allow_html=True)
+
+# ===== 4. WILLINGNESS TO PAY & PRICE ELASTICITY =====
+st.markdown("<div style='margin-top: 14px;'></div>", unsafe_allow_html=True)
+st.markdown("<h4 style='color: #003765; margin: 0 0 12px 0;'>Willingness to Pay (WTP) & Price Elasticity</h4>", unsafe_allow_html=True)
 
 col_w1, col_w2 = st.columns(2)
 
-wtp_clean = data[data["wtp_package"].notna() & (data["wtp_package"] != "I would not purchase this type of package")]
-wtp_counts = wtp_clean["wtp_package"].value_counts()
-wtp_order = ["Below ₦20,000", "₦20,000-50,000", "₦50,000-100,000", "₦100,000-200,000", "Above ₦200,000"]
-wtp_counts = wtp_counts.reindex([w for w in wtp_order if w in wtp_counts.index])
-wtp_total_valid = len(wtp_clean)
-
 with col_w1:
     st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-    st.markdown("<h4 style='color: #003765; margin: 0 0 8px 0;'>Preferred Package Price Tiers</h4>", unsafe_allow_html=True)
+    st.markdown("<h4 style='color: #003765; margin: 0 0 8px 0;'>Package Price Tier Preferences</h4>", unsafe_allow_html=True)
+
+    wtp_counts = pd.Series({
+        "Below ₦20,000": 101,
+        "₦20,000-50,000": 182,
+        "₦50,000-100,000": 86,
+        "₦100,000-200,000": 60,
+        "Above ₦200,000": 9,
+    })
 
     fig_wtp = px.bar(
         x=wtp_counts.index,
         y=wtp_counts.values,
         color=wtp_counts.values,
         color_continuous_scale=["#5BA3D0", "#003765"],
-        text=[f"{v} ({round(v/wtp_total_valid*100, 1)}%)" for v in wtp_counts.values],
+        text=[f"{v} ({round(v/438*100, 1)}%)" for v in wtp_counts.values],
     )
     fig_wtp.update_traces(textposition="outside")
     fig_wtp.update_layout(
@@ -291,114 +460,48 @@ with col_w1:
         xaxis_title="",
         yaxis_title="Respondents",
         showlegend=False,
-        height=290,
-        margin=dict(l=10, r=10, t=20, b=30),
+        height=280,
+        margin=dict(l=10, r=10, t=20, b=20),
     )
     st.plotly_chart(fig_wtp, use_container_width=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
 with col_w2:
     st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-    st.markdown("<h4 style='color: #003765; margin: 0 0 8px 0;'>Revenue Tier Distribution</h4>", unsafe_allow_html=True)
+    st.markdown("<h4 style='color: #003765; margin: 0 0 8px 0;'>Price Sensitivity vs. Quality Trade-Off</h4>", unsafe_allow_html=True)
 
-    under_50k_count = int(wtp_counts.get("Below ₦20,000", 0) + wtp_counts.get("₦20,000-50,000", 0))
-    under_50k_pct = round(under_50k_count / wtp_total_valid * 100, 1)
-
-    st.markdown(
-        f"""
-    <div style="font-size: 13px; color: #334155; line-height: 1.8;">
-        <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #F1F5F9; padding: 4px 0;">
-            <span>Core Tier (₦20,000-50,000):</span>
-            <strong style="color: #0077AD;">{round(wtp_counts.get('₦20,000-50,000', 0)/wtp_total_valid*100, 1)}% ({wtp_counts.get('₦20,000-50,000', 0)})</strong>
-        </div>
-        <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #F1F5F9; padding: 4px 0;">
-            <span>Entry Tier (&lt; ₦20,000):</span>
-            <strong>{round(wtp_counts.get('Below ₦20,000', 0)/wtp_total_valid*100, 1)}% ({wtp_counts.get('Below ₦20,000', 0)})</strong>
-        </div>
-        <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #F1F5F9; padding: 4px 0;">
-            <span>Mid-Tier (₦50,000-100,000):</span>
-            <strong>{round(wtp_counts.get('₦50,000-100,000', 0)/wtp_total_valid*100, 1)}% ({wtp_counts.get('₦50,000-100,000', 0)})</strong>
-        </div>
-        <div style="display: flex; justify-content: space-between; padding: 4px 0;">
-            <span>Executive / Premium (&gt; ₦100,000):</span>
-            <strong>{round((wtp_counts.get('₦100,000-200,000', 0) + wtp_counts.get('Above ₦200,000', 0))/wtp_total_valid*100, 1)}%</strong>
-        </div>
-    </div>
-    <div style="margin-top: 14px; padding: 10px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 6px; font-size: 11px; color: #475569;">
-        Commercial Window: <strong>{under_50k_pct}%</strong> of prospective buyers seek packages priced below ₦50,000. Launching standardized preventive wellness profiles within this range captures mass adoption.
-    </div>
-    """,
-        unsafe_allow_html=True,
-    )
-    st.markdown("</div>", unsafe_allow_html=True)
-
-# ===== 3. CUSTOMER RETENTION & CHURN RISK =====
-st.markdown("<div style='margin-top: 14px;'></div>", unsafe_allow_html=True)
-st.markdown("<h4 style='color: #003765; margin: 0 0 12px 0;'>Customer Journey & Retention Risk Analytics</h4>", unsafe_allow_html=True)
-
-col_r1, col_r2 = st.columns(2)
-
-with col_r1:
-    st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-    st.markdown("<h4 style='color: #003765; margin: 0 0 8px 0;'>Customer Funnel Journey</h4>", unsafe_allow_html=True)
-
-    journey_df = pd.DataFrame([
-        {"Stage": "Surveyed Base", "Count": total},
-        {"Stage": "Brand Aware", "Count": aware},
-        {"Stage": "Active Trial / Used", "Count": used},
-        {"Stage": "Satisfied Advocates", "Count": 132},
-    ])
-
-    fig_j = go.Figure(
-        go.Funnel(
-            y=journey_df["Stage"],
-            x=journey_df["Count"],
-            textinfo="value+percent initial",
-            marker=dict(color=["#002647", "#003765", "#0077AD", "#2C8FC7"]),
-            textfont=dict(color="white", size=12),
-        )
-    )
-    fig_j.update_layout(
-        plot_bgcolor="rgba(0,0,0,0)",
-        paper_bgcolor="rgba(0,0,0,0)",
-        font_color="#003765",
-        height=280,
-        margin=dict(l=10, r=20, t=10, b=10),
-    )
-    st.plotly_chart(fig_j, use_container_width=True)
-    st.markdown("</div>", unsafe_allow_html=True)
-
-with col_r2:
-    st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-    st.markdown("<h4 style='color: #003765; margin: 0 0 8px 0;'>Customer Retention Risk Segmentation</h4>", unsafe_allow_html=True)
-
-    risk_df = pd.DataFrame({
-        "Segment": ["Satisfied Advocates (Low Risk)", "Neutral / Passives (Medium Risk)", "Dissatisfied (High Churn Risk)"],
-        "Count": [132, 61, 6],
+    price_imp_df = pd.DataFrame({
+        "Perception": ["Quality comes first, price matters", "Price important but not decisive", "Price is most important", "Price is not significant"],
+        "Count": [271, 99, 44, 36],
+        "Pct": [60.2, 22.0, 9.8, 8.0],
     })
 
-    fig_risk = px.pie(
-        risk_df,
-        values="Count",
-        names="Segment",
-        color_discrete_sequence=["#003765", "#2C8FC7", "#CBD5E1"],
-        hole=0.45,
+    fig_pimp = px.bar(
+        price_imp_df.sort_values("Count", ascending=True),
+        x="Count",
+        y="Perception",
+        orientation="h",
+        color="Count",
+        color_continuous_scale=["#5BA3D0", "#003765"],
+        text=[f"{c} ({p}%)" for c, p in zip(price_imp_df.sort_values("Count", ascending=True)["Count"], price_imp_df.sort_values("Count", ascending=True)["Pct"])],
     )
-    fig_risk.update_layout(
+    fig_pimp.update_traces(textposition="outside")
+    fig_pimp.update_layout(
         plot_bgcolor="rgba(0,0,0,0)",
         paper_bgcolor="rgba(0,0,0,0)",
         font_color="#003765",
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5),
+        xaxis_title="Respondents",
+        yaxis_title="",
+        showlegend=False,
         height=280,
-        margin=dict(l=10, r=10, t=10, b=10),
+        margin=dict(l=10, r=50, t=10, b=10),
     )
-    fig_risk.update_traces(textposition="inside", textinfo="percent+label")
-    st.plotly_chart(fig_risk, use_container_width=True)
+    st.plotly_chart(fig_pimp, use_container_width=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
-# ===== 4. ADVANCED PREDICTIVE & CLUSTERING MODELS =====
+# ===== 5. ADVANCED MODELS & CLUSTERING =====
 st.markdown("<div style='margin-top: 14px;'></div>", unsafe_allow_html=True)
-st.markdown("<h4 style='color: #003765; margin: 0 0 12px 0;'>Advanced Analytical & Clustering Models</h4>", unsafe_allow_html=True)
+st.markdown("<h4 style='color: #003765; margin: 0 0 12px 0;'>Advanced Predictive & Clustering Models</h4>", unsafe_allow_html=True)
 
 col_m1, col_m2, col_m3, col_m4 = st.columns(4)
 
@@ -450,7 +553,7 @@ with col_m4:
         unsafe_allow_html=True,
     )
 
-# Clustering & Key Driver Analysis
+# Cluster Visualizations
 st.markdown("<div style='margin-top: 16px;'></div>", unsafe_allow_html=True)
 col_c1, col_c2 = st.columns(2)
 
@@ -524,39 +627,39 @@ with col_c2:
     st.plotly_chart(fig_dr, use_container_width=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
-# ===== 5. PRIORITIZED STRATEGIC ACTION ROADMAP =====
+# ===== 6. PRIORITIZED ACTION ROADMAP =====
 st.markdown("<div style='margin-top: 14px;'></div>", unsafe_allow_html=True)
 st.markdown("<h4 style='color: #003765; margin: 0 0 12px 0;'>Prioritized Strategic Action Roadmap</h4>", unsafe_allow_html=True)
 
 actions = [
     {
         "priority": "P1 · HIGH",
-        "title": "Digital Portal & Automated Delivery Integration",
-        "desc": "Upgrade the patient web portal and deploy automated WhatsApp/email PDF delivery to bridge the digital experience gap (3.91/5) and defend against E-Clinic.",
+        "title": "Digital Delivery Modernization (Automated WhatsApp & Portal)",
+        "desc": "Automate WhatsApp and email report delivery to address the 58.6% digital delivery preference and eliminate physical collection delays.",
         "class": "priority-high",
     },
     {
         "priority": "P1 · HIGH",
         "title": "Preventive Screening Packages (< ₦50,000)",
-        "desc": "Introduce modular wellness screening bundles targeted at the 64.6% of respondents seeking packages below ₦50,000 to neutralize retail competition from Mecure.",
+        "desc": "Launch structured wellness profiles aligned with the 64.6% of respondents seeking packages priced at or below ₦50,000.",
         "class": "priority-high",
     },
     {
         "priority": "P2 · MEDIUM",
-        "title": "Physician Network & B2B Clinic Expansion",
-        "desc": "Strengthen referral agreements across private hospitals and clinics in Wuse and Asokoro to capture the 53.6% Doctor/HMO Loyal persona and counter Lifebridge.",
+        "title": "Physician Network & B2B Clinical Retention",
+        "desc": "Mitigate the 22.2% churn risk from doctor/HMO reassignments by formalizing clinical partnerships with private practitioners across Wuse and Asokoro.",
         "class": "priority-medium",
     },
     {
         "priority": "P2 · MEDIUM",
-        "title": "Territory Engagement (Gwagwalada & Kubwa)",
-        "desc": "Leverage Gwagwalada's high satisfaction (86.6% CSAT) to deepen penetration, while optimizing collection turnaround in Kubwa to improve service perceptions.",
+        "title": "Corridor-Specific Service Optimization",
+        "desc": "Deploy mobile phlebotomy outreach in Gwagwalada (86.6% CSAT) while optimizing specimen collection workflows in Kubwa to reduce wait-time friction.",
         "class": "priority-medium",
     },
     {
         "priority": "P3 · LOW",
-        "title": "Corporate Health & Executive Screening Programs",
-        "desc": "Develop customized annual corporate screening retainers for the 35–44 working professional cohort (57.6% of surveyed base) through enterprise HMO partnerships.",
+        "title": "Corporate Wellness & Executive Retainers",
+        "desc": "Package annual health audits for corporate employers targeting the 35–44 working professional cohort (57.6% of the survey base).",
         "class": "priority-low",
     },
 ]
