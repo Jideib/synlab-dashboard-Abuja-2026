@@ -133,16 +133,6 @@ st.markdown(
         user-select: none;
     }
 
-    .status-badge {
-        display: inline-block;
-        padding: 2px 8px;
-        border-radius: 4px;
-        font-size: 11px;
-        font-weight: 600;
-    }
-    .status-neg { background: #FEE2E2; color: #991B1B; }
-    .status-pos { background: #DCFCE7; color: #166534; }
-
     .sentiment-quote {
         background: #F8FAFC;
         border-radius: 6px;
@@ -190,14 +180,23 @@ st.markdown(
         line-height: 1.55;
     }
 
-    .loc-card-container {
+    .loc-segment-card {
         background: white;
         border-radius: 10px;
-        padding: 16px 12px;
+        padding: 16px 14px;
         border: 1px solid var(--synlab-border);
         border-top: 4px solid var(--synlab-cerulean);
         text-align: center;
         height: 100%;
+    }
+
+    .loc-stat-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 5px 0;
+        border-bottom: 1px solid #F1F5F9;
+        font-size: 12px;
     }
 
     @media (max-width: 850px) {
@@ -262,14 +261,14 @@ data[used_col] = pd.to_numeric(data[used_col], errors="coerce").fillna(0)
 aware = int(data[aware_col].sum())
 used = int(data[used_col].sum())
 
-# CX NPS (Used only)
+# Overall CX NPS
 cx_promoters = 59
 cx_passives = 72
 cx_detractors = 58
 cx_valid_count = 189
 cx_nps = 0.5
 
-# Brand NPS (Aware cohort who answered)
+# Overall Brand Aware NPS
 brand_promoters = 77
 brand_passives = 84
 brand_detractors = 89
@@ -336,7 +335,7 @@ st.markdown(
     """
 <div class="page-header">
     <h1>Brand Health and Awareness</h1>
-    <p>Conversion funnel, customer acquisition channels, dual Net Promoter Scores (Customer vs. Brand), and touchpoint perception</p>
+    <p>Conversion funnel, customer acquisition channels, regional sentiment segments, and touchpoint perception</p>
 </div>
 """,
     unsafe_allow_html=True,
@@ -384,7 +383,7 @@ st.markdown(
 )
 st.markdown("</div>", unsafe_allow_html=True)
 
-# ===== 2. AWARENESS BREAKDOWN & ACQUISITION =====
+# ===== 2. AWARENESS BREAKDOWN & ACQUISITION (QUESTION 8) =====
 col1, col2 = st.columns(2)
 
 with col1:
@@ -460,7 +459,7 @@ with col1:
 
 with col2:
     st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-    st.markdown("""<h4 style="color: #003765; margin: 0 0 12px 0;">Brand Discovery Channels</h4>""", unsafe_allow_html=True)
+    st.markdown("""<h4 style="color: #003765; margin: 0 0 12px 0;">Brand Discovery Channels (Question 8)</h4>""", unsafe_allow_html=True)
 
     if q8_col and q8_col in data.columns:
         q8_counts = data[q8_col].dropna().value_counts().reset_index()
@@ -501,106 +500,127 @@ with col2:
         )
     st.markdown("</div>", unsafe_allow_html=True)
 
-# ===== 3. LOCATION CARDS: CUSTOMER NPS / BRAND NPS (ZERO CODE INDENTATION) =====
+# ===== 3. REGIONAL ADVOCACY SEGMENTS: PROMOTERS, PASSIVES & DETRACTORS =====
 st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-st.markdown("""<h4 style="color: #003765; margin: 0 0 12px 0;">Regional NPS Dynamics: Customer NPS vs. Brand NPS</h4>""", unsafe_allow_html=True)
+st.markdown("""<h4 style="color: #003765; margin: 0 0 12px 0;">Regional Advocacy Breakdown: Promoters, Passives & Detractors</h4>""", unsafe_allow_html=True)
 
 major_locs = ["Kubwa", "Wuse", "Gwarimpa", "Asokoro", "Gwagwalada"]
-location_nps_list = []
+loc_segment_list = []
 
 for loc in major_locs:
     loc_all = data[data["location"] == loc] if "location" in data.columns else pd.DataFrame()
-    loc_used = loc_all[loc_all[used_col] == 1] if not loc_all.empty and used_col in loc_all.columns else pd.DataFrame()
+    valid_sub = loc_all[loc_all[nps_col].notna()] if nps_col and not loc_all.empty else pd.DataFrame()
+    n_valid = len(valid_sub)
 
-    brand_valid = loc_all[loc_all[nps_col].notna()] if nps_col and not loc_all.empty else pd.DataFrame()
-    n_brand = len(brand_valid)
-    if n_brand > 0:
-        bp = (brand_valid[nps_col] >= 9).sum()
-        bd = (brand_valid[nps_col] <= 6).sum()
-        b_nps = round((bp - bd) / n_brand * 100, 1)
+    if n_valid > 0:
+        p_cnt = int((valid_sub[nps_col] >= 9).sum())
+        pas_cnt = int(((valid_sub[nps_col] >= 7) & (valid_sub[nps_col] <= 8)).sum())
+        d_cnt = int((valid_sub[nps_col] <= 6).sum())
+        p_pct = round(p_cnt / n_valid * 100, 1)
+        pas_pct = round(pas_cnt / n_valid * 100, 1)
+        d_pct = round(d_cnt / n_valid * 100, 1)
     else:
-        b_nps = 0.0
+        p_cnt = pas_cnt = d_cnt = 0
+        p_pct = pas_pct = d_pct = 0.0
 
-    cx_valid = loc_used[loc_used[nps_col].notna()] if nps_col and not loc_used.empty else pd.DataFrame()
-    n_cx = len(cx_valid)
-    if n_cx > 0:
-        cp = (cx_valid[nps_col] >= 9).sum()
-        cd = (cx_valid[nps_col] <= 6).sum()
-        c_nps = round((cp - cd) / n_cx * 100, 1)
-    else:
-        c_nps = 0.0
-
-    location_nps_list.append({
+    loc_segment_list.append({
         "Location": loc,
-        "Customer_Experience_NPS": c_nps,
-        "Brand_Awareness_NPS": b_nps,
-        "Valid_Customers": n_cx,
-        "Valid_Aware": n_brand,
+        "Total_Sample": n_valid,
+        "Promoters": p_cnt,
+        "Promoters_Pct": p_pct,
+        "Passives": pas_cnt,
+        "Passives_Pct": pas_pct,
+        "Detractors": d_cnt,
+        "Detractors_Pct": d_pct,
     })
 
-loc_nps_df = pd.DataFrame(location_nps_list)
+loc_seg_df = pd.DataFrame(loc_segment_list)
 cols = st.columns(len(major_locs))
 
-for i, row in loc_nps_df.iterrows():
+for i, row in loc_seg_df.iterrows():
     with cols[i]:
-        c_color = "#003765" if row["Customer_Experience_NPS"] >= 0 else "#2C8FC7"
-        b_color = "#0077AD" if row["Brand_Awareness_NPS"] >= 0 else "#7CB8D3"
-        top_border = "#003765" if row["Customer_Experience_NPS"] >= 0 else "#2C8FC7"
-
-        # FLUSH-LEFT HTML STRING (Prevents raw code block rendering)
-        card_html = f"""<div class="loc-card-container" style="border-top-color: {top_border};">
+        card_html = f"""<div class="loc-segment-card">
 <div style="font-size: 15px; color: #003765; font-weight: 800; margin-bottom: 8px;">{row['Location']}</div>
-<div style="display: flex; justify-content: space-around; align-items: baseline; margin: 4px 0;">
-<div>
-<div style="font-size: 22px; font-weight: 800; color: {c_color};">{row['Customer_Experience_NPS']:+.1f}</div>
-<div style="font-size: 11px; color: #64748B; font-weight: 700; text-transform: uppercase;">Customer NPS</div>
-<div style="font-size: 11px; color: #003765; font-weight: 600; margin-top: 2px;">{row['Valid_Customers']} Patients</div>
+<div class="loc-stat-row">
+<span style="color: #166534; font-weight: 700;">Promoters (9-10)</span>
+<span style="color: #166534; font-weight: 800;">{row['Promoters']} ({row['Promoters_Pct']}%)</span>
 </div>
-<div style="font-size: 20px; color: #CBD5E1; font-weight: 300;">/</div>
-<div>
-<div style="font-size: 22px; font-weight: 800; color: {b_color};">{row['Brand_Awareness_NPS']:+.1f}</div>
-<div style="font-size: 11px; color: #64748B; font-weight: 700; text-transform: uppercase;">Brand NPS</div>
-<div style="font-size: 11px; color: #0077AD; font-weight: 600; margin-top: 2px;">{row['Valid_Aware']} Aware</div>
+<div class="loc-stat-row">
+<span style="color: #0077AD; font-weight: 700;">Passives (7-8)</span>
+<span style="color: #0077AD; font-weight: 800;">{row['Passives']} ({row['Passives_Pct']}%)</span>
 </div>
+<div class="loc-stat-row">
+<span style="color: #991B1B; font-weight: 700;">Detractors (0-6)</span>
+<span style="color: #991B1B; font-weight: 800;">{row['Detractors']} ({row['Detractors_Pct']}%)</span>
+</div>
+<div style="font-size: 11px; color: #64748B; margin-top: 8px; font-weight: 600;">
+Total Evaluated: {row['Total_Sample']} Respondents
 </div>
 </div>"""
         st.markdown(card_html, unsafe_allow_html=True)
 
 st.markdown("<div style='margin-top: 14px;'></div>", unsafe_allow_html=True)
 
-loc_melted = loc_nps_df.melt(
-    id_vars=["Location"],
-    value_vars=["Customer_Experience_NPS", "Brand_Awareness_NPS"],
-    var_name="NPS Type",
-    value_name="Score",
-)
-loc_melted["NPS Type"] = loc_melted["NPS Type"].replace({
-    "Customer_Experience_NPS": "Customer Experience NPS (Patients)",
-    "Brand_Awareness_NPS": "Brand Aware NPS (Aware Cohort)",
-})
+# 100% Stacked Horizontal Component Bar Chart (Crystal clear distribution)
+fig_seg = go.Figure()
 
-fig_loc = px.bar(
-    loc_melted,
-    x="Location",
-    y="Score",
-    color="NPS Type",
-    barmode="group",
-    text=[f"{s:+.1f}" for s in loc_melted["Score"]],
-    color_discrete_sequence=["#003765", "#7CB8D3"],
-)
-fig_loc.update_traces(textposition="outside")
-fig_loc.update_layout(
+fig_seg.add_trace(go.Bar(
+    y=loc_seg_df["Location"],
+    x=loc_seg_df["Promoters_Pct"],
+    name="Promoters (9-10)",
+    orientation="h",
+    marker=dict(color="#003765"),
+    text=[f"{p}% ({c})" for p, c in zip(loc_seg_df["Promoters_Pct"], loc_seg_df["Promoters"])],
+    textposition="inside",
+    insidetextanchor="middle",
+    textfont=dict(color="white", size=11, family="Arial"),
+))
+
+fig_seg.add_trace(go.Bar(
+    y=loc_seg_df["Location"],
+    x=loc_seg_df["Passives_Pct"],
+    name="Passives (7-8)",
+    orientation="h",
+    marker=dict(color="#0077AD"),
+    text=[f"{p}% ({c})" for p, c in zip(loc_seg_df["Passives_Pct"], loc_seg_df["Passives"])],
+    textposition="inside",
+    insidetextanchor="middle",
+    textfont=dict(color="white", size=11, family="Arial"),
+))
+
+fig_seg.add_trace(go.Bar(
+    y=loc_seg_df["Location"],
+    x=loc_seg_df["Detractors_Pct"],
+    name="Detractors (0-6)",
+    orientation="h",
+    marker=dict(color="#CBD5E1"),
+    text=[f"{p}% ({c})" for p, c in zip(loc_seg_df["Detractors_Pct"], loc_seg_df["Detractors"])],
+    textposition="inside",
+    insidetextanchor="middle",
+    textfont=dict(color="#003765", size=11, family="Arial"),
+))
+
+fig_seg.update_layout(
+    barmode="stack",
     plot_bgcolor="rgba(0,0,0,0)",
     paper_bgcolor="rgba(0,0,0,0)",
     font_color="#003765",
-    xaxis_title="",
-    yaxis_title="Net Promoter Score",
-    yaxis=dict(range=[-75, 65]),
-    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5),
+    xaxis_title="Proportion of Evaluated Segment (%)",
+    xaxis=dict(range=[0, 100], tickfont=dict(color="#003765", size=11)),
+    yaxis_title="",
+    yaxis=dict(autorange="reversed", tickfont=dict(color="#003765", size=12)),
+    legend=dict(
+        orientation="h",
+        yanchor="bottom",
+        y=1.02,
+        xanchor="center",
+        x=0.5,
+        font=dict(color="#003765", size=12),
+    ),
     height=310,
-    margin=dict(l=10, r=10, t=30, b=10),
+    margin=dict(l=100, r=20, t=30, b=20),
 )
-st.plotly_chart(fig_loc, use_container_width=True)
+st.plotly_chart(fig_seg, use_container_width=True)
 st.markdown("</div>", unsafe_allow_html=True)
 
 # ===== 4. CX METRICS RADAR & SUMMARY PROGRESS BARS =====
@@ -718,7 +738,7 @@ with col_cx2:
             )
     st.markdown("</div>", unsafe_allow_html=True)
 
-# ===== 5. STRATEGIC BRAND HEALTH TAKEAWAYS (4 CARDS) =====
+# ===== 5. STRATEGIC BRAND HEALTH TAKEAWAYS =====
 st.markdown("<div style='margin-top: 14px;'></div>", unsafe_allow_html=True)
 st.markdown(
     """<p style="font-size: 14px; font-weight: 700; color: #003765; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 14px 0;">Brand Health Strategic Takeaways</p>""",
@@ -743,12 +763,12 @@ with col_b1:
 
 with col_b2:
     st.markdown(
-        f"""
+        """
     <div class="insight-card">
         <div class="insight-number">02</div>
-        <div class="insight-title">The NPS Dual Reality</div>
+        <div class="insight-title">Advocacy Density</div>
         <div class="insight-desc">
-            Verified patient advocacy is positive at <strong>+{cx_nps:.1f}</strong>, while overall Brand Aware NPS (<strong>{brand_nps:.1f}</strong>) is suppressed by non-users who selected ratings of 5–6 due to lack of firsthand service experience.
+            <strong>Gwagwalada (42.1%)</strong> and <strong>Wuse (35.2%)</strong> maintain the highest concentration of active promoters, providing organic peer recommendation anchors across central corridors.
         </div>
     </div>
     """,
@@ -760,9 +780,9 @@ with col_b3:
         """
     <div class="insight-card">
         <div class="insight-number">03</div>
-        <div class="insight-title">Regional Conversion Moats</div>
+        <div class="insight-title">Passives Opportunity</div>
         <div class="insight-desc">
-            <strong>Wuse (+17.3)</strong> and <strong>Gwagwalada (+48.0)</strong> command positive customer loyalty, whereas <strong>Asokoro (-25.0)</strong> and <strong>Kubwa (-64.2)</strong> demand targeted physical access and retail pricing interventions.
+            <strong>84 respondents (33.6%)</strong> across Abuja rate SYNLAB a 7 or 8. Converting half of this satisfied passive group into active advocates provides an immediate path to double-digit brand advocacy.
         </div>
     </div>
     """,
