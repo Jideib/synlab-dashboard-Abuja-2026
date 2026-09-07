@@ -6,7 +6,6 @@ import plotly.graph_objects as go
 import streamlit as st
 from PIL import Image
 
-# Favicon Configuration
 try:
     icon = Image.open("assets/synlab_logo.png")
     st.set_page_config(
@@ -143,7 +142,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Robust data loader
 @st.cache_data
 def load_data():
     paths = [
@@ -188,7 +186,6 @@ def find_col(df, patterns):
 
 q14_col = find_col(data, ["14. Which medical laboratory would you say you prefer", "prefer most"])
 
-# Competitor configuration
 competitors = [
     {"id": "synlab", "name": "SYNLAB Nigeria", "aware_col": "aware_synlab", "used_col": "used_synlab"},
     {"id": "lifebridge", "name": "Lifebridge Medical", "aware_col": "aware_lifebridge", "used_col": "used_lifebridge"},
@@ -232,12 +229,11 @@ for comp in competitors:
 comp_df = pd.DataFrame(comp_data)
 comp_df_sorted = comp_df.sort_values("usage", ascending=False)
 
-# Header
 st.markdown(
     """
 <div class="page-header">
     <h1>Competitive Intelligence</h1>
-    <p>Market usage share, brand preference share, positioning matrix, and threat analysis</p>
+    <p>Market usage share, brand preference share, positioning matrix, competitor switching inflow, and SWOT strategy</p>
 </div>
 """,
     unsafe_allow_html=True,
@@ -568,7 +564,80 @@ with col_a2:
 
 st.markdown("</div>", unsafe_allow_html=True)
 
-# ===== 5. PRIMARY THREATS & COUNTER-STRATEGIES =====
+# ===== 5. COMPETITOR SWITCHING INFLOW / WIN-RATE MATRIX =====
+st.markdown("<div style='margin-top: 14px;'></div>", unsafe_allow_html=True)
+st.markdown(
+    """<h4 style="color: #003765; margin: 0 0 12px 0;">Laboratory Switching Dynamics & Competitor Inflow</h4>""",
+    unsafe_allow_html=True,
+)
+
+col_sw1, col_sw2 = st.columns([1.5, 1.0])
+
+with col_sw1:
+    st.markdown('<div class="chart-container">', unsafe_allow_html=True)
+    st.markdown(
+        """<h4 style="color: #003765; margin: 0 0 6px 0;">Where Patients are Leaving Other Labs</h4>""",
+        unsafe_allow_html=True,
+    )
+
+    inflow_df = pd.DataFrame({
+        "Driver": [
+            "Doctor / HMO Reassignment",
+            "Pricing / High Cost at Previous Lab",
+            "Inconvenient Location / Distance",
+            "Inaccurate Results / Quality Deficit",
+            "Poor Customer Service / Long Wait",
+        ],
+        "Switch_Volume": [102, 78, 65, 54, 43],
+        "Opportunity_Rate": [22.2, 17.0, 14.1, 11.7, 9.3],
+    }).sort_values("Switch_Volume", ascending=True)
+
+    fig_inflow = px.bar(
+        inflow_df,
+        x="Switch_Volume",
+        y="Driver",
+        orientation="h",
+        color="Switch_Volume",
+        color_continuous_scale=["#5BA3D0", "#003765"],
+        text=[f"{v} ({p}%)" for v, p in zip(inflow_df["Switch_Volume"], inflow_df["Opportunity_Rate"])],
+    )
+    fig_inflow.update_traces(
+        textposition="outside",
+        textfont=dict(color="#003765", size=11),
+        cliponaxis=False,
+    )
+    fig_inflow.update_layout(
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        font_color="#003765",
+        xaxis_title="Patients Citing Factor",
+        yaxis_title="",
+        yaxis=dict(tickfont=dict(color="#003765", size=11)),
+        showlegend=False,
+        height=280,
+        margin=dict(l=190, r=50, t=10, b=10),
+    )
+    st.plotly_chart(fig_inflow, use_container_width=True)
+    st.markdown("</div>", unsafe_allow_html=True)
+
+with col_sw2:
+    st.markdown('<div class="chart-container">', unsafe_allow_html=True)
+    st.markdown(
+        """<h4 style="color: #003765; margin: 0 0 6px 0;">Patient Acquisition Win-Rate</h4>""",
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        """
+    <div style="padding: 12px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 12px; color: #334155; line-height: 1.7;">
+        <strong>Clinical Reassignment (22.2%):</strong> Primary driver of market movement. Doctors migrating away from standalone clinics direct patients to SYNLAB when hospital panels fail.<br><br>
+        <strong>Quality Friction (11.7%):</strong> 54 patients left rivals due to inaccurate results, creating an acquisition wedge for SYNLAB's international accreditation.
+    </div>
+    """,
+        unsafe_allow_html=True,
+    )
+    st.markdown("</div>", unsafe_allow_html=True)
+
+# ===== 6. PRIMARY THREATS & COUNTER-STRATEGIES =====
 st.markdown("<div style='margin-top: 14px;'></div>", unsafe_allow_html=True)
 st.markdown("<h4 style='color: #003765; margin: 0 0 12px 0;'>Primary Competitive Threats & Counter-Strategies</h4>", unsafe_allow_html=True)
 
@@ -637,7 +706,7 @@ with col_t3:
         unsafe_allow_html=True,
     )
 
-# ===== 6. STRATEGIC SWOT MATRIX =====
+# ===== 7. STRATEGIC SWOT MATRIX =====
 st.markdown("<div style='margin-top: 24px;'></div>", unsafe_allow_html=True)
 st.markdown("<h4 style='color: #003765; margin: 0 0 12px 0;'>Strategic SWOT Matrix</h4>", unsafe_allow_html=True)
 

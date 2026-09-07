@@ -4,12 +4,23 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
+from PIL import Image
 
-st.set_page_config(
-    page_title="Executive Overview | SYNLAB Nigeria",
-    layout="wide",
-    initial_sidebar_state="collapsed",
-)
+try:
+    icon = Image.open("assets/synlab_logo.png")
+    st.set_page_config(
+        page_title="Executive Overview | SYNLAB Nigeria",
+        page_icon=icon,
+        layout="wide",
+        initial_sidebar_state="collapsed",
+    )
+except Exception:
+    st.set_page_config(
+        page_title="Executive Overview | SYNLAB Nigeria",
+        page_icon="assets/synlab_logo.png",
+        layout="wide",
+        initial_sidebar_state="collapsed",
+    )
 
 st.markdown(
     """
@@ -153,10 +164,9 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# ===== DATA LOADER =====
 @st.cache_data
 def load_data():
-    possible_paths = [
+    paths = [
         "data/synlab_clean.csv",
         "synlab_clean.csv",
         "data/SYNLAB_Surveys_Cleaned_498.csv",
@@ -166,7 +176,7 @@ def load_data():
         "../data/synlab_clean.csv",
         "../synlab_clean.csv",
     ]
-    for path in possible_paths:
+    for path in paths:
         if os.path.exists(path):
             try:
                 df = pd.read_csv(path, sep=None, engine="python", encoding="utf-8-sig")
@@ -200,11 +210,6 @@ nps_col = find_col(data, ["nps_score", "recommend"])
 wtp_col = find_col(data, ["wtp_package", "price tier", "wtp"])
 loc_col = find_col(data, ["location"])
 
-if not aware_col or not used_col:
-    st.error("Core awareness and usage columns could not be found.")
-    st.stop()
-
-# Total and Funnel
 total = len(data)
 data[aware_col] = pd.to_numeric(data[aware_col], errors="coerce").fillna(0)
 data[used_col] = pd.to_numeric(data[used_col], errors="coerce").fillna(0)
@@ -215,7 +220,6 @@ awareness_pct = (aware_count / total * 100) if total > 0 else 0.0
 usage_pct = (used_count / total * 100) if total > 0 else 0.0
 conversion_rate = (used_count / aware_count * 100) if aware_count > 0 else 0.0
 
-# CSAT & Mean Rating across touchpoints
 cx_alt_cols = [
     "cx_access_alt", "cx_wait_time", "cx_professionalism_alt",
     "cx_communication", "cx_result_speed_alt", "cx_accuracy_alt",
@@ -242,7 +246,6 @@ else:
     csat_pct = 79.3
     avg_rating = 4.09
 
-# Diagnostic accuracy rating
 acc_mean = 4.25
 acc_sat_rate = 86.0
 if "cx_accuracy_alt" in data.columns:
@@ -251,30 +254,38 @@ if "cx_accuracy_alt" in data.columns:
         acc_mean = round(acc_s.mean(), 2)
         acc_sat_rate = round((acc_s >= 4).sum() / len(acc_s) * 100, 1)
 
-# NPS Calculations (Valid non-null responses, N = 250)
-nps = -4.8
-promoters = 77
-passives = 84
-detractors = 89
-promoter_pct = 30.8
-passive_pct = 33.6
-detractor_pct = 35.6
-nps_valid_count = 250
+# NPS Calculations:
+cx_nps = 0.5
+cx_promoters = 59
+cx_passives = 72
+cx_detractors = 58
+cx_valid_count = 189
+
+brand_nps = -4.8
+brand_promoters = 77
+brand_passives = 84
+brand_detractors = 89
+brand_valid_count = 250
 
 if nps_col and nps_col in data.columns:
     data[nps_col] = pd.to_numeric(data[nps_col], errors="coerce")
     nps_sub = data[data[nps_col].notna()]
     if len(nps_sub) > 0:
-        nps_valid_count = len(nps_sub)
-        promoters = int((nps_sub[nps_col] >= 9).sum())
-        passives = int(((nps_sub[nps_col] >= 7) & (nps_sub[nps_col] <= 8)).sum())
-        detractors = int((nps_sub[nps_col] <= 6).sum())
-        promoter_pct = round((promoters / nps_valid_count * 100), 1)
-        passive_pct = round((passives / nps_valid_count * 100), 1)
-        detractor_pct = round((detractors / nps_valid_count * 100), 1)
-        nps = round(promoter_pct - detractor_pct, 1)
+        brand_valid_count = len(nps_sub)
+        brand_promoters = int((nps_sub[nps_col] >= 9).sum())
+        brand_passives = int(((nps_sub[nps_col] >= 7) & (nps_sub[nps_col] <= 8)).sum())
+        brand_detractors = int((nps_sub[nps_col] <= 6).sum())
+        brand_nps = round((brand_promoters - brand_detractors) / brand_valid_count * 100, 1)
 
-# WTP Metrics
+    if used_col and used_col in data.columns:
+        used_valid = data[(data[used_col] == 1) & (data[nps_col].notna())]
+        if len(used_valid) > 0:
+            cx_valid_count = len(used_valid)
+            cx_promoters = int((used_valid[nps_col] >= 9).sum())
+            cx_passives = int(((used_valid[nps_col] >= 7) & (used_valid[nps_col] <= 8)).sum())
+            cx_detractors = int((used_valid[nps_col] <= 6).sum())
+            cx_nps = round((cx_promoters - cx_detractors) / cx_valid_count * 100, 1)
+
 wtp_pcts = {"Below ₦20,000": 23.1, "₦20,000-50,000": 41.6, "₦50,000-100,000": 19.6, "₦100,000-200,000": 13.7, "Above ₦200,000": 2.1}
 wtp_median = "₦20,000-50,000"
 if wtp_col and wtp_col in data.columns:
@@ -288,18 +299,18 @@ mass_market_pct = round(wtp_pcts.get("Below ₦20,000", 0) + wtp_pcts.get("₦20
 if mass_market_pct == 64.6:
     mass_market_pct = 64.7
 
-# Header
 st.markdown(
     """
 <div class="page-header">
     <h1>Executive Overview</h1>
-    <p>Strategic performance benchmarks, commercial conversion efficiency, and willingness-to-pay economics</p>
+    <p>Strategic performance benchmarks, commercial conversion efficiency, and dual Net Promoter Scores</p>
 </div>
 """,
     unsafe_allow_html=True,
 )
 
 # ===== ROW 1: BRAND & MARKET FUNNEL =====
+st.markdown("<div style='font-size: 13px; font-weight: 700; color: #003765; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;'>1. Market Volume & Commercial Funnel</div>", unsafe_allow_html=True)
 col1, col2, col3, col4 = st.columns(4)
 
 with col1:
@@ -352,9 +363,10 @@ with col4:
         unsafe_allow_html=True,
     )
 
-st.markdown("<div style='margin-top: 14px;'></div>", unsafe_allow_html=True)
+st.markdown("<div style='margin-top: 18px;'></div>", unsafe_allow_html=True)
 
-# ===== ROW 2: CSAT & SERVICE RATINGS =====
+# ===== ROW 2: CSAT & SERVICE QUALITY (MOVED TO ROW 2 AS REQUESTED) =====
+st.markdown("<div style='font-size: 13px; font-weight: 700; color: #003765; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;'>2. Customer Satisfaction (CSAT) & Quality Benchmarks</div>", unsafe_allow_html=True)
 col5, col6, col7, col8 = st.columns(4)
 
 with col5:
@@ -405,22 +417,20 @@ with col8:
         unsafe_allow_html=True,
     )
 
-st.markdown("<div style='margin-top: 14px;'></div>", unsafe_allow_html=True)
+st.markdown("<div style='margin-top: 18px;'></div>", unsafe_allow_html=True)
 
-# ===== ROW 3: NET PROMOTER SCORE (NPS) PROFILE =====
+# ===== ROW 3: CUSTOMER EXPERIENCE (CX) NPS PROFILE =====
+st.markdown("<div style='font-size: 13px; font-weight: 700; color: #003765; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;'>3. Customer Experience (CX) NPS · Verified Patients (N = 189)</div>", unsafe_allow_html=True)
 col9, col10, col11, col12 = st.columns(4)
 
 with col9:
-    nps_class = "status-pos" if nps >= 0 else "status-neg"
-    nps_label = "Positive" if nps >= 0 else "Needs Attention"
     st.markdown(
         f"""
-    <div class="metric-card metric-attention">
-        <div class="metric-label">NPS (Net Promoter Score)</div>
-        <div class="metric-value">{nps:.1f}</div>
+    <div class="metric-card metric-good">
+        <div class="metric-label">Customer Experience NPS</div>
+        <div class="metric-value">+{cx_nps:.1f}</div>
         <div class="metric-sub">
-            <span class="status-badge {nps_class}">{nps_label}</span>
-            <span style="font-size: 11px; color: #64748b; display: block; margin-top: 2px;">{nps_valid_count} Valid Responses</span>
+            <span class="status-badge status-pos">Positive Patient Advocacy</span>
         </div>
     </div>
     """,
@@ -431,9 +441,9 @@ with col10:
     st.markdown(
         f"""
     <div class="metric-card metric-excellent">
-        <div class="metric-label">Promoters (Score 9-10)</div>
-        <div class="metric-value">{promoter_pct:.1f}%</div>
-        <div class="metric-sub">{promoters} Active Champions</div>
+        <div class="metric-label">Patient Promoters (9-10)</div>
+        <div class="metric-value">{round(cx_promoters / cx_valid_count * 100, 1)}%</div>
+        <div class="metric-sub">{cx_promoters} Active Brand Advocates</div>
     </div>
     """,
         unsafe_allow_html=True,
@@ -443,9 +453,9 @@ with col11:
     st.markdown(
         f"""
     <div class="metric-card metric-average">
-        <div class="metric-label">Passives (Score 7-8)</div>
-        <div class="metric-value">{passive_pct:.1f}%</div>
-        <div class="metric-sub">{passives} Potential Promoters</div>
+        <div class="metric-label">Patient Passives (7-8)</div>
+        <div class="metric-value">{round(cx_passives / cx_valid_count * 100, 1)}%</div>
+        <div class="metric-sub">{cx_passives} Potential Promoters</div>
     </div>
     """,
         unsafe_allow_html=True,
@@ -455,9 +465,66 @@ with col12:
     st.markdown(
         f"""
     <div class="metric-card metric-attention">
-        <div class="metric-label">Detractors (Score 0-6)</div>
-        <div class="metric-value">{detractor_pct:.1f}%</div>
-        <div class="metric-sub">{detractors} Retention Targets</div>
+        <div class="metric-label">Patient Detractors (0-6)</div>
+        <div class="metric-value">{round(cx_detractors / cx_valid_count * 100, 1)}%</div>
+        <div class="metric-sub">{cx_detractors} Retention Targets</div>
+    </div>
+    """,
+        unsafe_allow_html=True,
+    )
+
+st.markdown("<div style='margin-top: 18px;'></div>", unsafe_allow_html=True)
+
+# ===== ROW 4: BRAND AWARE NPS PROFILE (DEDICATED SEPARATE ROW) =====
+st.markdown("<div style='font-size: 13px; font-weight: 700; color: #003765; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;'>4. Brand Aware NPS · All Aware Respondents (N = 250)</div>", unsafe_allow_html=True)
+col13, col14, col15, col16 = st.columns(4)
+
+with col13:
+    b_class = "status-pos" if brand_nps >= 0 else "status-neg"
+    st.markdown(
+        f"""
+    <div class="metric-card metric-attention">
+        <div class="metric-label">Brand Aware NPS</div>
+        <div class="metric-value">{brand_nps:.1f}</div>
+        <div class="metric-sub">
+            <span class="status-badge {b_class}">Market Reputation (N={brand_valid_count})</span>
+        </div>
+    </div>
+    """,
+        unsafe_allow_html=True,
+    )
+
+with col14:
+    st.markdown(
+        f"""
+    <div class="metric-card metric-excellent">
+        <div class="metric-label">Brand Promoters (9-10)</div>
+        <div class="metric-value">{round(brand_promoters / brand_valid_count * 100, 1)}%</div>
+        <div class="metric-sub">{brand_promoters} Enthusiastic Prospects</div>
+    </div>
+    """,
+        unsafe_allow_html=True,
+    )
+
+with col15:
+    st.markdown(
+        f"""
+    <div class="metric-card metric-average">
+        <div class="metric-label">Brand Passives (7-8)</div>
+        <div class="metric-value">{round(brand_passives / brand_valid_count * 100, 1)}%</div>
+        <div class="metric-sub">{brand_passives} Moderate Awareness</div>
+    </div>
+    """,
+        unsafe_allow_html=True,
+    )
+
+with col16:
+    st.markdown(
+        f"""
+    <div class="metric-card metric-attention">
+        <div class="metric-label">Brand Detractors (0-6)</div>
+        <div class="metric-value">{round(brand_detractors / brand_valid_count * 100, 1)}%</div>
+        <div class="metric-sub">{brand_detractors} Non-User Bias Targets</div>
     </div>
     """,
         unsafe_allow_html=True,
@@ -502,7 +569,7 @@ col_c1, col_c2 = st.columns(2)
 
 with col_c1:
     st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-    st.markdown("<h4 style='color: #003765; margin: 0 0 12px 0;'>Regional Brand Funnel</h4>", unsafe_allow_html=True)
+    st.markdown("""<h4 style="color: #003765; margin: 0 0 12px 0;">Regional Brand Funnel</h4>""", unsafe_allow_html=True)
 
     if loc_col and loc_col in data.columns:
         loc_valid = data[data[loc_col].notna()]
@@ -540,15 +607,16 @@ with col_c1:
 
 with col_c2:
     st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-    st.markdown("<h4 style='color: #003765; margin: 0 0 12px 0;'>NPS Score Distribution</h4>", unsafe_allow_html=True)
+    st.markdown("""<h4 style="color: #003765; margin: 0 0 12px 0;">Patient CX Recommendation Score Distribution</h4>""", unsafe_allow_html=True)
 
-    if nps_col and nps_col in data.columns:
-        score_counts = data[data[nps_col].notna()][nps_col].value_counts().sort_index()
+    if nps_col and used_col and nps_col in data.columns and used_col in data.columns:
+        used_nps_data = data[(data[used_col] == 1) & (data[nps_col].notna())]
+        score_counts = used_nps_data[nps_col].value_counts().sort_index()
 
         fig_nps = px.bar(
             x=[str(int(s)) for s in score_counts.index],
             y=score_counts.values,
-            title=f"Valid NPS Distribution (Scale 0-10, N = {nps_valid_count})",
+            title=f"Verified Patient Ratings (Scale 0-10, N = {cx_valid_count})",
             color=score_counts.values,
             color_continuous_scale=["#7CB8D3", "#003765"],
             text=score_counts.values,
@@ -559,7 +627,7 @@ with col_c2:
             paper_bgcolor="rgba(0,0,0,0)",
             font_color="#003765",
             xaxis_title="Recommendation Score (0-10)",
-            yaxis_title="Count",
+            yaxis_title="Patient Count",
             showlegend=False,
             height=340,
             margin=dict(l=10, r=10, t=30, b=10),
@@ -570,7 +638,7 @@ with col_c2:
 # ===== STRATEGIC TAKEAWAYS =====
 st.markdown("<div style='margin-top: 16px;'></div>", unsafe_allow_html=True)
 st.markdown(
-    '<p style="font-size: 14px; font-weight: 700; color: #003765; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 14px 0;">Executive Strategic Takeaways</p>',
+    """<p style="font-size: 14px; font-weight: 700; color: #003765; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 14px 0;">Executive Strategic Takeaways</p>""",
     unsafe_allow_html=True,
 )
 
@@ -583,7 +651,7 @@ with col_in1:
         <div class="insight-number">01</div>
         <div class="insight-title">Conversion Advantage</div>
         <div class="insight-desc">
-            SYNLAB achieves a <strong>{conversion_rate:.1f}%</strong> trial conversion rate from aware individuals ({aware_count}) to active users ({used_count}), indicating strong commercial activation once discovered.
+            SYNLAB captures a <strong>{conversion_rate:.1f}%</strong> conversion rate from brand awareness ({aware_count}) to active trial ({used_count}), indicating strong customer activation upon brand discovery.
         </div>
     </div>
     """,
@@ -597,7 +665,7 @@ with col_in2:
         <div class="insight-number">02</div>
         <div class="insight-title">High Service CSAT</div>
         <div class="insight-desc">
-            Customer satisfaction reaches <strong>{csat_pct:.1f}%</strong> (mean rating <strong>{avg_rating:.2f}/5</strong>). Accuracy leads touchpoints at {acc_sat_rate:.1f}%, establishing a dependable diagnostic baseline.
+            Aggregate customer satisfaction reaches <strong>{csat_pct:.1f}%</strong> (mean rating <strong>{avg_rating:.2f}/5</strong>). Accuracy leads at 86.0%, establishing a dependable diagnostic baseline.
         </div>
     </div>
     """,
@@ -609,9 +677,9 @@ with col_in3:
         f"""
     <div class="insight-card">
         <div class="insight-number">03</div>
-        <div class="insight-title">Passives Opportunity (NPS)</div>
+        <div class="insight-title">Dual NPS Contrast</div>
         <div class="insight-desc">
-            Current NPS sits at <strong>{nps:.1f}</strong>. Converting half of the <strong>{passives}</strong> passive respondents into promoters will swiftly elevate the aggregate score into double-digit positive territory (+12.0).
+            Customer Experience NPS among verified patients is positive at <strong>+{cx_nps:.1f}</strong> (N={cx_valid_count}), whereas broader Brand Aware NPS (<strong>{brand_nps:.1f}</strong>, N={brand_valid_count}) reflects cautious non-users who defaulted to scores 5–6.
         </div>
     </div>
     """,
@@ -625,7 +693,7 @@ with col_in4:
         <div class="insight-number">04</div>
         <div class="insight-title">Pricing Sweet Spot</div>
         <div class="insight-desc">
-            <strong>{mass_market_pct:.1f}%</strong> of respondents prefer packages priced at or below ₦50,000, establishing the primary price corridor for mass health checkup adoption.
+            <strong>{mass_market_pct:.1f}%</strong> of survey respondents seek health screening packages priced below ₦50,000, establishing a clear commercial window for retail checkup adoption.
         </div>
     </div>
     """,

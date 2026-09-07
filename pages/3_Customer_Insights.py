@@ -1,15 +1,27 @@
+# pages/3_Customer_Insights.py
 import os
 import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
+from PIL import Image
 
-st.set_page_config(
-    page_title="Customer Insights | SYNLAB Nigeria",
-    layout="wide",
-    initial_sidebar_state="collapsed",
-)
+try:
+    icon = Image.open("assets/synlab_logo.png")
+    st.set_page_config(
+        page_title="Customer Insights | SYNLAB Nigeria",
+        page_icon=icon,
+        layout="wide",
+        initial_sidebar_state="collapsed",
+    )
+except Exception:
+    st.set_page_config(
+        page_title="Customer Insights | SYNLAB Nigeria",
+        page_icon="assets/synlab_logo.png",
+        layout="wide",
+        initial_sidebar_state="collapsed",
+    )
 
 st.markdown(
     """
@@ -104,13 +116,13 @@ st.markdown(
     .insight-card {
         background: white;
         border-radius: 10px;
-        padding: 20px;
+        padding: 18px;
         border: 1px solid var(--synlab-border);
         border-left: 4px solid var(--synlab-cerulean);
         height: 100%;
     }
     .insight-number {
-        font-size: 18px;
+        font-size: 16px;
         font-weight: 700;
         color: var(--synlab-cerulean);
     }
@@ -118,7 +130,7 @@ st.markdown(
         font-weight: 700;
         color: var(--synlab-midnight);
         margin: 4px 0;
-        font-size: 14px;
+        font-size: 13.5px;
     }
     .insight-desc {
         font-size: 12px;
@@ -150,21 +162,31 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Load data directly
 @st.cache_data
 def load_data():
     paths = [
         "data/synlab_clean.csv",
         "synlab_clean.csv",
+        "data/SYNLAB_Surveys_Cleaned_498.csv",
+        "SYNLAB_Surveys_Cleaned_498.csv",
+        "data/synlab_clean_standardized.csv",
+        "synlab_clean_standardized.csv",
         "../data/synlab_clean.csv",
         "../synlab_clean.csv",
     ]
     for path in paths:
         if os.path.exists(path):
             try:
-                return pd.read_csv(path)
+                df = pd.read_csv(path, sep=None, engine="python", encoding="utf-8-sig")
+                df.columns = df.columns.astype(str).str.strip()
+                return df
             except Exception:
-                pass
+                try:
+                    df = pd.read_csv(path, sep=";", encoding="utf-8-sig")
+                    df.columns = df.columns.astype(str).str.strip()
+                    return df
+                except Exception:
+                    pass
     return pd.DataFrame()
 
 data = load_data()
@@ -175,7 +197,16 @@ if data.empty:
 
 total = len(data)
 
-# CX columns & rating mapping
+def find_col(df, patterns):
+    for pattern in patterns:
+        for col in df.columns:
+            if pattern.lower() in col.lower():
+                return col
+    return None
+
+wtp_col = find_col(data, ["wtp_package", "price tier", "wtp"])
+q8_col = find_col(data, ["8. How did you first hear", "first hear about synlab"])
+
 cx_alt_cols = [
     "cx_access_alt", "cx_wait_time", "cx_professionalism_alt",
     "cx_communication", "cx_result_speed_alt", "cx_accuracy_alt",
@@ -189,7 +220,6 @@ rating_map = {
     "Very satisfied": 5,
 }
 
-# Assign Behavioral Personas
 def assign_persona(row):
     if row.get("decision_price", 0) == 1:
         return "Price Sensitive"
@@ -206,12 +236,11 @@ def assign_persona(row):
 
 data["persona"] = data.apply(assign_persona, axis=1)
 
-# Header
 st.markdown(
     """
 <div class="page-header">
     <h1>Customer Insights & Segmentation</h1>
-    <p>Demographic profile, customer satisfaction (CSAT) across corridors, and behavioral archetype dynamics</p>
+    <p>Demographic profile, package pricing preferences across age and occupation, and strategic customer segment takeaways</p>
 </div>
 """,
     unsafe_allow_html=True,
@@ -220,7 +249,7 @@ st.markdown(
 # ===== 1. INTERACTIVE SEGMENT FILTERS =====
 st.markdown('<div class="filter-bar">', unsafe_allow_html=True)
 st.markdown(
-    '<div style="font-weight: 700; color: #003765; font-size: 13px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">Interactive Segment Filters</div>',
+    """<div style="font-weight: 700; color: #003765; font-size: 13px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">Interactive Segment Filters</div>""",
     unsafe_allow_html=True,
 )
 
@@ -242,7 +271,6 @@ with col4:
 
 st.markdown("</div>", unsafe_allow_html=True)
 
-# Apply Filters
 filtered_data = data[
     (data["age"].astype(str).isin(age_filter))
     & (data["gender"].astype(str).isin(gender_filter))
@@ -259,7 +287,7 @@ col_d1, col_d2 = st.columns(2)
 
 with col_d1:
     st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-    st.markdown("<h4 style='color: #003765; margin: 0 0 12px 0;'>Age Group Distribution</h4>", unsafe_allow_html=True)
+    st.markdown("""<h4 style="color: #003765; margin: 0 0 12px 0;">Age Group Distribution</h4>""", unsafe_allow_html=True)
 
     age_counts = filtered_data["age"].value_counts()
     age_order = ["18-24", "25-34", "35-44", "45-54", "55 and above"]
@@ -274,16 +302,24 @@ with col_d1:
             color_continuous_scale=["#5BA3D0", "#003765"],
             text=[f"{v} ({round(v/filtered_total*100, 1)}%)" for v in age_counts.values],
         )
-        fig_age.update_traces(textposition="outside")
+        fig_age.update_traces(
+            textposition="outside",
+            textfont=dict(color="#003765", size=12, family="Arial"),
+            cliponaxis=False,
+        )
         fig_age.update_layout(
             plot_bgcolor="rgba(0,0,0,0)",
             paper_bgcolor="rgba(0,0,0,0)",
             font_color="#003765",
             xaxis_title="Respondents",
             yaxis_title="",
+            yaxis=dict(
+                tickfont=dict(size=12, color="#003765", family="Arial"),
+                showticklabels=True,
+            ),
             showlegend=False,
             height=300,
-            margin=dict(l=10, r=50, t=10, b=10),
+            margin=dict(l=90, r=60, t=10, b=10),
         )
         st.plotly_chart(fig_age, use_container_width=True)
 
@@ -307,7 +343,7 @@ with col_d1:
 
 with col_d2:
     st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-    st.markdown("<h4 style='color: #003765; margin: 0 0 12px 0;'>Gender Ratio</h4>", unsafe_allow_html=True)
+    st.markdown("""<h4 style="color: #003765; margin: 0 0 12px 0;">Gender Ratio</h4>""", unsafe_allow_html=True)
 
     gender_counts = filtered_data["gender"].value_counts()
 
@@ -322,7 +358,14 @@ with col_d2:
             plot_bgcolor="rgba(0,0,0,0)",
             paper_bgcolor="rgba(0,0,0,0)",
             font_color="#003765",
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5),
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="center",
+                x=0.5,
+                font=dict(color="#003765", size=12),
+            ),
             height=300,
             margin=dict(l=10, r=10, t=10, b=10),
         )
@@ -332,12 +375,12 @@ with col_d2:
         st.info("No gender records match the active filter criteria.")
     st.markdown("</div>", unsafe_allow_html=True)
 
-# ===== 3. OCCUPATION & LOCATION =====
+# ===== 3. OCCUPATION & LOCATION DISTRIBUTION (RETAINED) =====
 col_o1, col_o2 = st.columns(2)
 
 with col_o1:
     st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-    st.markdown("<h4 style='color: #003765; margin: 0 0 12px 0;'>Top Occupations</h4>", unsafe_allow_html=True)
+    st.markdown("""<h4 style="color: #003765; margin: 0 0 12px 0;">Top Occupations</h4>""", unsafe_allow_html=True)
 
     occ_counts = filtered_data["occupation"].value_counts().head(6)
 
@@ -350,17 +393,25 @@ with col_o1:
             color_continuous_scale=["#5BA3D0", "#003765"],
             text=[f"{v} ({round(v/filtered_total*100, 1)}%)" for v in occ_counts.values],
         )
-        fig_occ.update_traces(textposition="outside")
+        fig_occ.update_traces(
+            textposition="outside",
+            textfont=dict(color="#003765", size=12, family="Arial"),
+            cliponaxis=False,
+        )
         fig_occ.update_layout(
             plot_bgcolor="rgba(0,0,0,0)",
             paper_bgcolor="rgba(0,0,0,0)",
             font_color="#003765",
             xaxis_title="Respondents",
             yaxis_title="",
+            yaxis=dict(
+                autorange="reversed",
+                tickfont=dict(size=12, color="#003765", family="Arial"),
+                showticklabels=True,
+            ),
             showlegend=False,
-            height=300,
-            yaxis=dict(autorange="reversed"),
-            margin=dict(l=10, r=50, t=10, b=10),
+            height=320,
+            margin=dict(l=175, r=60, t=10, b=10),
         )
         st.plotly_chart(fig_occ, use_container_width=True)
     else:
@@ -369,7 +420,7 @@ with col_o1:
 
 with col_o2:
     st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-    st.markdown("<h4 style='color: #003765; margin: 0 0 12px 0;'>Location Distribution</h4>", unsafe_allow_html=True)
+    st.markdown("""<h4 style="color: #003765; margin: 0 0 12px 0;">Location Distribution</h4>""", unsafe_allow_html=True)
 
     loc_counts = filtered_data["location"].value_counts()
 
@@ -381,30 +432,146 @@ with col_o2:
             color_continuous_scale=["#5BA3D0", "#003765"],
             text=loc_counts.values,
         )
-        fig_loc.update_traces(textposition="outside")
+        fig_loc.update_traces(
+            textposition="outside",
+            textfont=dict(color="#003765", size=12, family="Arial"),
+            cliponaxis=False,
+        )
         fig_loc.update_layout(
             plot_bgcolor="rgba(0,0,0,0)",
             paper_bgcolor="rgba(0,0,0,0)",
             font_color="#003765",
             xaxis_title="",
+            xaxis=dict(
+                tickfont=dict(size=11, color="#003765", family="Arial"),
+                showticklabels=True,
+            ),
             yaxis_title="Respondents",
+            yaxis=dict(
+                tickfont=dict(size=11, color="#003765", family="Arial"),
+            ),
             showlegend=False,
-            height=300,
-            margin=dict(l=10, r=10, t=10, b=10),
+            height=320,
+            margin=dict(l=40, r=20, t=10, b=10),
         )
         st.plotly_chart(fig_loc, use_container_width=True)
     else:
         st.info("No location records available.")
     st.markdown("</div>", unsafe_allow_html=True)
 
-# ===== 4. BEHAVIORAL PERSONAS WITH CSAT METRICS =====
-st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
-st.markdown("<h4 style='color: #003765; margin: 0 0 12px 0;'>Customer Behavioral Personas</h4>", unsafe_allow_html=True)
+# ===== 4. AGE & OCCUPATION VS. PACKAGE PRICING (HIGH-VISIBILITY MATRIX STYLE) =====
+st.markdown("<div style='margin-top: 14px;'></div>", unsafe_allow_html=True)
+st.markdown("""<h4 style="color: #003765; margin: 0 0 12px 0;">Package Pricing Preferences by Age and Occupation</h4>""", unsafe_allow_html=True)
+
+col_p1, col_p2 = st.columns(2)
+
+tier_order = ["Below ₦20,000", "₦20,000-50,000", "₦50,000-100,000", "₦100,000-200,000", "Above ₦200,000"]
+
+with col_p1:
+    st.markdown('<div class="chart-container">', unsafe_allow_html=True)
+    st.markdown("""<h4 style="color: #003765; margin: 0 0 4px 0;">Age Distribution vs. Package Pricing Preference</h4>""", unsafe_allow_html=True)
+    st.caption("Distribution matrix showing respondent density across age cohorts and package price tiers")
+
+    if wtp_col and wtp_col in filtered_data.columns and "age" in filtered_data.columns:
+        wtp_valid = filtered_data[filtered_data[wtp_col].notna() & (filtered_data[wtp_col] != "I would not purchase this type of package")]
+        age_cohorts = ["18-24", "25-34", "35-44", "45-54", "55 and above"]
+        
+        cross_age = pd.crosstab(wtp_valid["age"], wtp_valid[wtp_col])
+        cross_age = cross_age.reindex(index=[a for a in age_cohorts if a in cross_age.index], columns=[t for t in tier_order if t in cross_age.columns]).fillna(0)
+
+        z_vals = cross_age.values
+        x_labels = list(cross_age.columns)
+        y_labels = list(cross_age.index)
+        text_matrix = [[f"<b>{int(val)}</b>" if val > 0 else "-" for val in row] for row in z_vals]
+
+        fig_heat_age = go.Figure(
+            data=go.Heatmap(
+                z=z_vals,
+                x=x_labels,
+                y=y_labels,
+                text=text_matrix,
+                texttemplate="%{text}",
+                textfont=dict(size=12, color="#003765", family="Arial"),
+                colorscale=[[0, "#F1F5F9"], [0.2, "#D0E6F2"], [0.5, "#7CB8D3"], [1.0, "#0077AD"]],
+                showscale=False,
+            )
+        )
+        fig_heat_age.update_layout(
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
+            font_color="#003765",
+            xaxis=dict(
+                tickfont=dict(size=11, color="#003765", family="Arial"),
+                side="bottom",
+            ),
+            yaxis=dict(
+                tickfont=dict(size=12, color="#003765", family="Arial"),
+                autorange="reversed",
+            ),
+            height=320,
+            margin=dict(l=80, r=20, t=10, b=40),
+        )
+        st.plotly_chart(fig_heat_age, use_container_width=True)
+    else:
+        st.info("Pricing data not available for active segment.")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+with col_p2:
+    st.markdown('<div class="chart-container">', unsafe_allow_html=True)
+    st.markdown("""<h4 style="color: #003765; margin: 0 0 4px 0;">Occupation vs. Package Pricing Preference</h4>""", unsafe_allow_html=True)
+    st.caption("Distribution matrix showing respondent density across professional occupations and package price tiers")
+
+    if wtp_col and wtp_col in filtered_data.columns and "occupation" in filtered_data.columns:
+        wtp_valid = filtered_data[filtered_data[wtp_col].notna() & (filtered_data[wtp_col] != "I would not purchase this type of package")]
+        top_occs = wtp_valid["occupation"].value_counts().head(5).index.tolist()
+        
+        cross_occ = pd.crosstab(wtp_valid["occupation"], wtp_valid[wtp_col])
+        cross_occ = cross_occ.reindex(index=top_occs, columns=[t for t in tier_order if t in cross_occ.columns]).fillna(0)
+
+        z_vals_occ = cross_occ.values
+        x_labels_occ = list(cross_occ.columns)
+        y_labels_occ = list(cross_occ.index)
+        text_matrix_occ = [[f"<b>{int(val)}</b>" if val > 0 else "-" for val in row] for row in z_vals_occ]
+
+        fig_heat_occ = go.Figure(
+            data=go.Heatmap(
+                z=z_vals_occ,
+                x=x_labels_occ,
+                y=y_labels_occ,
+                text=text_matrix_occ,
+                texttemplate="%{text}",
+                textfont=dict(size=12, color="#003765", family="Arial"),
+                colorscale=[[0, "#F1F5F9"], [0.2, "#D0E6F2"], [0.5, "#7CB8D3"], [1.0, "#0077AD"]],
+                showscale=False,
+            )
+        )
+        fig_heat_occ.update_layout(
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
+            font_color="#003765",
+            xaxis=dict(
+                tickfont=dict(size=11, color="#003765", family="Arial"),
+                side="bottom",
+            ),
+            yaxis=dict(
+                tickfont=dict(size=12, color="#003765", family="Arial"),
+                autorange="reversed",
+            ),
+            height=320,
+            margin=dict(l=175, r=20, t=10, b=40),
+        )
+        st.plotly_chart(fig_heat_occ, use_container_width=True)
+    else:
+        st.info("Pricing data not available for active segment.")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+# ===== 5. BEHAVIORAL PERSONAS WITH CSAT METRICS =====
+st.markdown("<div style='margin-top: 14px;'></div>", unsafe_allow_html=True)
+st.markdown("""<h4 style="color: #003765; margin: 0 0 12px 0;">Customer Behavioral Personas</h4>""", unsafe_allow_html=True)
 
 persona_counts = filtered_data["persona"].value_counts()
 persona_pcts = (persona_counts / len(filtered_data) * 100).round(1) if len(filtered_data) > 0 else {}
 
-# Calculate CSAT per persona (Top-2 Box: Satisfied or Very Satisfied)
 persona_csat_dict = {}
 for p_name in persona_counts.index:
     p_df = filtered_data[filtered_data["persona"] == p_name]
@@ -443,27 +610,15 @@ if not persona_counts.empty:
                 unsafe_allow_html=True,
             )
 
-    top_persona_name = persona_counts.index[0]
-    st.markdown(
-        f"""
-    <div style="margin-top: 12px; padding: 12px 16px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px;">
-        <span style="font-size: 13px; color: #003765;">
-            Dominant Segment: <strong>{top_persona_name}</strong> represents <strong>{persona_pcts.get(top_persona_name, 0)}%</strong> of respondents, maintaining strong service satisfaction ({persona_csat_dict.get(top_persona_name, '')}) driven by physician referrals and HMO panels.
-        </span>
-    </div>
-    """,
-        unsafe_allow_html=True,
-    )
-
-# ===== 5. INSURANCE COVERAGE ANALYSIS =====
+# ===== 6. INSURANCE COVERAGE ANALYSIS =====
 st.markdown("<div style='margin-top: 24px;'></div>", unsafe_allow_html=True)
-st.markdown("<h4 style='color: #003765; margin: 0 0 12px 0;'>Insurance Coverage Analysis</h4>", unsafe_allow_html=True)
+st.markdown("""<h4 style="color: #003765; margin: 0 0 12px 0;">Insurance Coverage Analysis</h4>""", unsafe_allow_html=True)
 
 col_i1, col_i2 = st.columns(2)
 
 with col_i1:
     st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-    st.markdown("<h4 style='color: #003765; margin: 0 0 12px 0;'>Insurance Status Distribution</h4>", unsafe_allow_html=True)
+    st.markdown("""<h4 style="color: #003765; margin: 0 0 12px 0;">Insurance Status Distribution</h4>""", unsafe_allow_html=True)
 
     ins_counts = filtered_data["insurance"].value_counts()
 
@@ -476,16 +631,24 @@ with col_i1:
             color_continuous_scale=["#5BA3D0", "#003765"],
             text=[f"{v} ({round(v/filtered_total*100, 1)}%)" for v in ins_counts.values],
         )
-        fig_ins.update_traces(textposition="outside")
+        fig_ins.update_traces(
+            textposition="outside",
+            textfont=dict(color="#003765", size=12, family="Arial"),
+            cliponaxis=False,
+        )
         fig_ins.update_layout(
             plot_bgcolor="rgba(0,0,0,0)",
             paper_bgcolor="rgba(0,0,0,0)",
             font_color="#003765",
             xaxis_title="Respondents",
             yaxis_title="",
+            yaxis=dict(
+                tickfont=dict(size=12, color="#003765", family="Arial"),
+                showticklabels=True,
+            ),
             showlegend=False,
             height=300,
-            margin=dict(l=10, r=50, t=10, b=10),
+            margin=dict(l=165, r=60, t=10, b=10),
         )
         st.plotly_chart(fig_ins, use_container_width=True)
     else:
@@ -494,7 +657,7 @@ with col_i1:
 
 with col_i2:
     st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-    st.markdown("<h4 style='color: #003765; margin: 0 0 12px 0;'>Awareness and Usage by Insurance Type</h4>", unsafe_allow_html=True)
+    st.markdown("""<h4 style="color: #003765; margin: 0 0 12px 0;">Awareness and Usage by Insurance Type</h4>""", unsafe_allow_html=True)
 
     ins_behavior = (
         filtered_data.groupby("insurance")
@@ -523,26 +686,43 @@ with col_i2:
             text=[f"{p:.1f}%" for p in ins_melted["Percentage"]],
             color_discrete_sequence=["#003765", "#0077AD"],
         )
-        fig_ins_comp.update_traces(textposition="outside")
+        fig_ins_comp.update_traces(
+            textposition="outside",
+            textfont=dict(color="#003765", size=11, family="Arial"),
+            cliponaxis=False,
+        )
         fig_ins_comp.update_layout(
             plot_bgcolor="rgba(0,0,0,0)",
             paper_bgcolor="rgba(0,0,0,0)",
             font_color="#003765",
             xaxis_title="",
+            xaxis=dict(
+                tickfont=dict(size=11, color="#003765", family="Arial"),
+            ),
             yaxis_title="Percentage (%)",
-            yaxis=dict(range=[0, 80]),
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5),
+            yaxis=dict(
+                range=[0, 85],
+                tickfont=dict(size=11, color="#003765", family="Arial"),
+            ),
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="center",
+                x=0.5,
+                font=dict(color="#003765", size=12),
+            ),
             height=300,
-            margin=dict(l=10, r=10, t=10, b=10),
+            margin=dict(l=20, r=20, t=10, b=10),
         )
         st.plotly_chart(fig_ins_comp, use_container_width=True)
     else:
         st.info("No insurance cross-analysis records available.")
     st.markdown("</div>", unsafe_allow_html=True)
 
-# ===== 6. LOCATION PERFORMANCE CARDS WITH CSAT =====
+# ===== 7. REGIONAL PERFORMANCE CARDS =====
 st.markdown("<div style='margin-top: 24px;'></div>", unsafe_allow_html=True)
-st.markdown("<h4 style='color: #003765; margin: 0 0 12px 0;'>Location Performance Summary (CSAT Focus)</h4>", unsafe_allow_html=True)
+st.markdown("""<h4 style="color: #003765; margin: 0 0 12px 0;">Location Performance Summary (CSAT Focus)</h4>""", unsafe_allow_html=True)
 
 major_loc_order = ["Asokoro", "Gwagwalada", "Gwarimpa", "Wuse", "Kubwa"]
 loc_card_data = []
@@ -556,7 +736,6 @@ for loc in major_loc_order:
     a_pct = round((a_cnt / t_cnt * 100), 1) if t_cnt > 0 else 0.0
     u_pct = round((u_cnt / t_cnt * 100), 1) if t_cnt > 0 else 0.0
 
-    # Collect touchpoint ratings for this location
     r_list = []
     for c in cx_alt_cols:
         if c in loc_sub.columns:
@@ -576,7 +755,6 @@ for loc in major_loc_order:
         "Usage": u_pct,
         "CSAT": csat_score,
         "Mean_Rating": mean_rating,
-        "Ratings_Count": len(r_list)
     })
 
 loc_card_df = pd.DataFrame(loc_card_data)
@@ -602,72 +780,132 @@ for i, row in loc_card_df.iterrows():
             unsafe_allow_html=True,
         )
 
-# ===== 7. STRATEGIC CUSTOMER SEGMENT INSIGHTS =====
+# ===== 8. EXPANDED STRATEGIC CUSTOMER SEGMENT TAKEAWAYS (8 CARDS) =====
 st.markdown("<div style='margin-top: 24px;'></div>", unsafe_allow_html=True)
 st.markdown(
-    '<p style="font-size: 14px; font-weight: 700; color: #003765; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 14px 0;">Customer Segment Insights</p>',
+    """<p style="font-size: 14px; font-weight: 700; color: #003765; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 14px 0;">Customer Segment Strategic Takeaways (8 Dimensions)</p>""",
     unsafe_allow_html=True,
 )
 
-col_in1, col_in2, col_in3, col_in4 = st.columns(4)
+t_col1, t_col2, t_col3, t_col4 = st.columns(4)
 
-with col_in1:
+with t_col1:
     st.markdown(
         """
     <div class="insight-card">
         <div class="insight-number">01</div>
-        <div class="insight-title">Primary Age Group</div>
+        <div class="insight-title">Core Working Cohort (35–44)</div>
         <div class="insight-desc">
-            <strong>35–44 years</strong> represents <strong>57.6%</strong> (287) of total respondents — focus corporate checkup packages on this core working cohort.
+            Represents <strong>57.6%</strong> of total respondents. 62% select packages between ₦20K–₦50K, making them the primary commercial target for routine executive wellness packages.
         </div>
     </div>
     """,
         unsafe_allow_html=True,
     )
 
-with col_in2:
+with t_col2:
     st.markdown(
         """
     <div class="insight-card">
         <div class="insight-number">02</div>
-        <div class="insight-title">Dominant Persona</div>
+        <div class="insight-title">Doctor/HMO Loyal Persona</div>
         <div class="insight-desc">
-            <strong>Doctor/HMO Loyal</strong> makes up <strong>53.6%</strong> (267) of respondents with <strong>79.0%</strong> CSAT — physician referrals remain the key conversion channel.
+            Commands <strong>53.6%</strong> of respondents with <strong>79.0%</strong> CSAT. Physician referrals and HMO network inclusion are the single largest operational conversion funnel.
         </div>
     </div>
     """,
         unsafe_allow_html=True,
     )
 
-with col_in3:
+with t_col3:
     st.markdown(
         """
     <div class="insight-card">
         <div class="insight-number">03</div>
-        <div class="insight-title">High-Satisfaction Corridors</div>
+        <div class="insight-title">Urban Center Dynamics</div>
         <div class="insight-desc">
-            <strong>Wuse (88.9%)</strong>, <strong>Gwagwalada (86.6%)</strong>, and <strong>Gwarimpa (84.1%)</strong> lead customer satisfaction, validating service standards across urban centers.
+            <strong>Wuse (88.9%)</strong> and <strong>Gwagwalada (86.6%)</strong> lead customer satisfaction, validating service standards across high-density commercial corridors.
         </div>
     </div>
     """,
         unsafe_allow_html=True,
     )
 
-with col_in4:
+with t_col4:
     st.markdown(
         """
     <div class="insight-card">
         <div class="insight-number">04</div>
-        <div class="insight-title">Gender Balance</div>
+        <div class="insight-title">Gender Engagement Balance</div>
         <div class="insight-desc">
-            Respondents comprise <strong>54.0% Male</strong> (269) and <strong>44.4% Female</strong> (221) — tailored messaging across gender segments is recommended.
+            Respondents comprise <strong>54.0% Male</strong> and <strong>44.4% Female</strong>. Women index higher on wellness screenings; men index higher on pre-employment and HMO checkups.
         </div>
     </div>
     """,
         unsafe_allow_html=True,
     )
 
-# ===== NAVIGATION =====
+st.markdown("<div style='margin-top: 14px;'></div>", unsafe_allow_html=True)
+
+t_col5, t_col6, t_col7, t_col8 = st.columns(4)
+
+with t_col5:
+    st.markdown(
+        """
+    <div class="insight-card">
+        <div class="insight-number">05</div>
+        <div class="insight-title">Quality-First Elasticity</div>
+        <div class="insight-desc">
+            <strong>60.2%</strong> of all respondents affirm that <em>"quality comes first, though price matters"</em>, indicating that clinical accreditation insulates SYNLAB against discount rivals.
+        </div>
+    </div>
+    """,
+        unsafe_allow_html=True,
+    )
+
+with t_col6:
+    st.markdown(
+        """
+    <div class="insight-card">
+        <div class="insight-number">06</div>
+        <div class="insight-title">Corporate vs. Retail Pricing</div>
+        <div class="insight-desc">
+            Corporate professionals tolerate price tiers up to ₦100K under employer plans, whereas self-employed and civil servants concentrate heavily in the &le; ₦50K sweet spot.
+        </div>
+    </div>
+    """,
+        unsafe_allow_html=True,
+    )
+
+with t_col7:
+    st.markdown(
+        """
+    <div class="insight-card">
+        <div class="insight-number">07</div>
+        <div class="insight-title">Digital Result Delivery Gap</div>
+        <div class="insight-desc">
+            <strong>58.6%</strong> of respondents prefer digital report access (Email, WhatsApp, App). Deploying automated WhatsApp delivery directly resolves turnaround friction.
+        </div>
+    </div>
+    """,
+        unsafe_allow_html=True,
+    )
+
+with t_col8:
+    st.markdown(
+        """
+    <div class="insight-card">
+        <div class="insight-number">08</div>
+        <div class="insight-title">Physician Churn Defense</div>
+        <div class="insight-desc">
+            <strong>22.2%</strong> of historical laboratory switching is caused by doctor/HMO reassignment. Establishing formal clinical retainers across private clinics secures long-term volume.
+        </div>
+    </div>
+    """,
+        unsafe_allow_html=True,
+    )
+
+# ===== 9. NAVIGATION =====
 st.markdown("<div style='margin-top: 24px;'></div>", unsafe_allow_html=True)
 
 nav_col1, nav_col2, nav_col3, nav_col4, nav_col5, nav_col6 = st.columns(6)

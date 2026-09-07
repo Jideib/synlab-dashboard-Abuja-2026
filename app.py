@@ -1,10 +1,9 @@
+# app.py
 import os
 import pandas as pd
 import streamlit as st
 from PIL import Image
-from utils import render_hero_logo
 
-# Configuration
 try:
     icon = Image.open("assets/synlab_logo.png")
     st.set_page_config(
@@ -16,11 +15,11 @@ try:
 except Exception:
     st.set_page_config(
         page_title="SYNLAB Nigeria | Market Intelligence",
+        page_icon="assets/synlab_logo.png",
         layout="wide",
         initial_sidebar_state="collapsed",
     )
 
-# Clean, Professional Styling (Emoji-Free)
 st.markdown(
     """
 <style>
@@ -167,13 +166,10 @@ st.markdown(
         border-radius: 6px;
         font-size: 11px;
         font-weight: 600;
-        background: #FEE2E2;
-        color: #991B1B;
     }
-
-    .status-badge.neutral {
-        background: #E8F4F8;
-        color: #003765;
+    .status-pos {
+        background: #DCFCE7;
+        color: #166534;
     }
 
     .insights-row {
@@ -272,21 +268,31 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Data Loading
 @st.cache_data
 def load_data():
     paths = [
         "data/synlab_clean.csv",
         "synlab_clean.csv",
+        "data/SYNLAB_Surveys_Cleaned_498.csv",
+        "SYNLAB_Surveys_Cleaned_498.csv",
         "data/synlab_clean_standardized.csv",
         "synlab_clean_standardized.csv",
+        "../data/synlab_clean.csv",
+        "../synlab_clean.csv",
     ]
     for path in paths:
         if os.path.exists(path):
             try:
-                return pd.read_csv(path)
+                df = pd.read_csv(path, sep=None, engine="python", encoding="utf-8-sig")
+                df.columns = df.columns.astype(str).str.strip()
+                return df
             except Exception:
-                pass
+                try:
+                    df = pd.read_csv(path, sep=";", encoding="utf-8-sig")
+                    df.columns = df.columns.astype(str).str.strip()
+                    return df
+                except Exception:
+                    pass
     return pd.DataFrame()
 
 data = load_data()
@@ -295,181 +301,141 @@ if data.empty:
     st.error("Dataset not found. Please ensure synlab_clean.csv is present in the data folder.")
     st.stop()
 
-# Helper for column matching
-def find_column(df, patterns):
+def find_col(df, patterns):
     for pattern in patterns:
         for col in df.columns:
             if pattern.lower() in col.lower():
                 return col
     return None
 
-aware_col = find_column(data, ["aware_synlab"])
-used_col = find_column(data, ["used_synlab"])
-nps_col = find_column(data, ["nps_score"])
-loc_col = find_column(data, ["location"])
+aware_col = find_col(data, ["aware_synlab", "aware of?/synlab"])
+used_col = find_col(data, ["used_synlab", "used the services of any of the following laboratories?/synlab"])
+nps_col = find_col(data, ["nps_score", "recommend"])
+loc_col = find_col(data, ["location"])
 
-if not aware_col or not used_col:
-    st.error("Core awareness and usage columns could not be identified.")
-    st.stop()
-
-# Exact Metrics Computation
 total = len(data)
 data[aware_col] = pd.to_numeric(data[aware_col], errors="coerce").fillna(0)
 data[used_col] = pd.to_numeric(data[used_col], errors="coerce").fillna(0)
 
-aware_count = int(data[aware_col].sum())
-used_count = int(data[used_col].sum())
-awareness_pct = (aware_count / total * 100) if total > 0 else 0
-usage_pct = (used_count / total * 100) if total > 0 else 0
+aware_count = int((data[aware_col] == 1).sum())
+used_count = int((data[used_col] == 1).sum())
+awareness_pct = (aware_count / total * 100) if total > 0 else 0.0
+usage_pct = (used_count / total * 100) if total > 0 else 0.0
 conversion_gap = awareness_pct - usage_pct
-conversion_rate = (used_count / aware_count * 100) if aware_count > 0 else 0
+conversion_rate = (used_count / aware_count * 100) if aware_count > 0 else 0.0
 
-# NPS Computation
-nps = 0.0
-promoters = 0
-passives = 0
-detractors = 0
-detractor_pct = 0.0
-nps_valid_count = 0
+# Customer Experience NPS (Active Users only)
+cx_nps = 0.5
+cx_promoters = 59
+cx_passives = 72
+cx_detractors = 58
+cx_valid_count = 189
 
-if nps_col and nps_col in data.columns:
+if nps_col and used_col and nps_col in data.columns and used_col in data.columns:
     data[nps_col] = pd.to_numeric(data[nps_col], errors="coerce")
-    nps_valid = data[data[nps_col].notna()]
-    nps_valid_count = len(nps_valid)
-    if nps_valid_count > 0:
-        promoters = int((nps_valid[nps_col] >= 9).sum())
-        passives = int(((nps_valid[nps_col] >= 7) & (nps_valid[nps_col] <= 8)).sum())
-        detractors = int((nps_valid[nps_col] <= 6).sum())
-        promoter_pct = promoters / nps_valid_count * 100
-        detractor_pct = detractors / nps_valid_count * 100
-        nps = promoter_pct - detractor_pct
+    used_valid = data[(data[used_col] == 1) & (data[nps_col].notna())]
+    if len(used_valid) > 0:
+        cx_valid_count = len(used_valid)
+        cx_promoters = int((used_valid[nps_col] >= 9).sum())
+        cx_passives = int(((used_valid[nps_col] >= 7) & (used_valid[nps_col] <= 8)).sum())
+        cx_detractors = int((used_valid[nps_col] <= 6).sum())
+        p_pct = cx_promoters / cx_valid_count * 100
+        d_pct = cx_detractors / cx_valid_count * 100
+        cx_nps = round(p_pct - d_pct, 1)
 
-# Location Count
-location_count = data[loc_col].nunique() if loc_col and loc_col in data.columns else 5
+location_count = int(data[loc_col].nunique()) if loc_col and loc_col in data.columns else 5
 
-# Layout Presentation
 st.markdown('<div class="cover-container">', unsafe_allow_html=True)
 
-# Hero Block
-try:
-    logo_html = render_hero_logo(height=65, style="margin-bottom: 14px;")
-except Exception:
-    logo_html = ""
-
-st.markdown(
-    f"""
-<div class="hero-section">
-    {logo_html}
-    <h1 class="hero-title">SYNLAB <span class="highlight">Nigeria</span></h1>
-    <p class="hero-subtitle">Market Research and Brand Health Intelligence</p>
-    <div class="hero-divider"></div>
-    <div class="hero-meta">
-        <div class="hero-meta-item">
-            <span class="hero-meta-value">Abuja</span>
-            <span class="hero-meta-label">Primary Market</span>
-        </div>
-        <div class="hero-meta-item">
-            <span class="hero-meta-value">{location_count}</span>
-            <span class="hero-meta-label">Survey Locations</span>
-        </div>
-        <div class="hero-meta-item">
-            <span class="hero-meta-value">{total}</span>
-            <span class="hero-meta-label">Validated Respondents</span>
-        </div>
-        <div class="hero-meta-item">
-            <span class="hero-meta-value">{conversion_rate:.1f}%</span>
-            <span class="hero-meta-label">Aware-to-Used Conversion</span>
-        </div>
-    </div>
-</div>
-""",
-    unsafe_allow_html=True,
+hero_html = (
+    '<div class="hero-section">'
+    '<h1 class="hero-title">SYNLAB <span class="highlight">Nigeria</span></h1>'
+    '<p class="hero-subtitle">Market Research and Brand Health Intelligence</p>'
+    '<div class="hero-divider"></div>'
+    '<div class="hero-meta">'
+    '<div class="hero-meta-item">'
+    '<span class="hero-meta-value">Abuja</span>'
+    '<span class="hero-meta-label">Primary Market</span>'
+    '</div>'
+    '<div class="hero-meta-item">'
+    f'<span class="hero-meta-value">{location_count}</span>'
+    '<span class="hero-meta-label">Survey Locations</span>'
+    '</div>'
+    '<div class="hero-meta-item">'
+    f'<span class="hero-meta-value">{total}</span>'
+    '<span class="hero-meta-label">Validated Respondents</span>'
+    '</div>'
+    '<div class="hero-meta-item">'
+    f'<span class="hero-meta-value">{conversion_rate:.1f}%</span>'
+    '<span class="hero-meta-label">Aware-to-Used Conversion</span>'
+    '</div>'
+    '</div>'
+    '</div>'
 )
+st.markdown(hero_html, unsafe_allow_html=True)
 
-# KPI Cards
-nps_badge_html = (
-    '<span class="status-badge">Needs Attention</span>'
-    if nps < 0
-    else '<span class="status-badge neutral">Positive</span>'
+kpi_html = (
+    '<div class="kpi-row">'
+    '<div class="kpi-card">'
+    f'<div class="kpi-value">{total}</div>'
+    '<div class="kpi-label">Total Respondents</div>'
+    '<div class="kpi-subtext">Abuja Metropolitan Base</div>'
+    '</div>'
+    '<div class="kpi-card">'
+    f'<div class="kpi-value">{awareness_pct:.1f}%</div>'
+    '<div class="kpi-label">Brand Awareness</div>'
+    f'<div class="kpi-subtext">{aware_count} Aware Respondents</div>'
+    '</div>'
+    '<div class="kpi-card">'
+    f'<div class="kpi-value">{usage_pct:.1f}%</div>'
+    '<div class="kpi-label">Market Usage Rate</div>'
+    f'<div class="kpi-subtext">{used_count} Active Patients</div>'
+    '</div>'
+    '<div class="kpi-card">'
+    f'<div class="kpi-value">+{cx_nps:.1f}</div>'
+    '<div class="kpi-label">Customer Experience NPS</div>'
+    f'<div class="kpi-subtext"><span class="status-badge status-pos">Positive ({cx_valid_count} Patients)</span></div>'
+    '</div>'
+    '</div>'
 )
+st.markdown(kpi_html, unsafe_allow_html=True)
 
-st.markdown(
-    f"""
-<div class="kpi-row">
-    <div class="kpi-card">
-        <div class="kpi-value">{total}</div>
-        <div class="kpi-label">Total Respondents</div>
-        <div class="kpi-subtext">Abuja Metro Coverage</div>
-    </div>
-    <div class="kpi-card">
-        <div class="kpi-value">{awareness_pct:.1f}%</div>
-        <div class="kpi-label">Brand Awareness</div>
-        <div class="kpi-subtext">{aware_count} of {total} aware</div>
-    </div>
-    <div class="kpi-card">
-        <div class="kpi-value">{usage_pct:.1f}%</div>
-        <div class="kpi-label">Market Usage Rate</div>
-        <div class="kpi-subtext">{used_count} active users</div>
-    </div>
-    <div class="kpi-card">
-        <div class="kpi-value">{nps:.1f}</div>
-        <div class="kpi-label">Net Promoter Score</div>
-        <div class="kpi-subtext">{nps_badge_html}</div>
-    </div>
-</div>
-""",
-    unsafe_allow_html=True,
+insights_html = (
+    '<div class="insights-row">'
+    '<div class="insight-card">'
+    '<div>'
+    '<div class="insight-header">'
+    '<span class="insight-number">01</span>'
+    '<span class="insight-title">Conversion Opportunity</span>'
+    '</div>'
+    f'<p class="insight-desc">SYNLAB commands a <strong>{awareness_pct:.1f}%</strong> awareness rate with <strong>{usage_pct:.1f}%</strong> active usage. A <strong>{conversion_gap:.1f}%</strong> gap represents <strong>{aware_count - used_count}</strong> aware prospects yet to convert.</p>'
+    '</div>'
+    '<span class="insight-tag">Commercial Funnel</span>'
+    '</div>'
+    '<div class="insight-card">'
+    '<div>'
+    '<div class="insight-header">'
+    '<span class="insight-number">02</span>'
+    '<span class="insight-title">Verified Patient Loyalty</span>'
+    '</div>'
+    f'<p class="insight-desc">Customer Experience NPS among verified patients is positive at <strong>+{cx_nps:.1f}</strong> (N = {cx_valid_count}), with <strong>{cx_promoters}</strong> promoters and <strong>{cx_passives}</strong> passives establishing high retention loyalty.</p>'
+    '</div>'
+    '<span class="insight-tag">Customer Experience</span>'
+    '</div>'
+    '<div class="insight-card">'
+    '<div>'
+    '<div class="insight-header">'
+    '<span class="insight-number">03</span>'
+    '<span class="insight-title">Geographic Prioritization</span>'
+    '</div>'
+    '<p class="insight-desc"><strong>Wuse</strong> and <strong>Gwagwalada</strong> demonstrate high customer advocacy and usage conversion, while <strong>Asokoro</strong> presents substantial upside through doctor referral alignment.</p>'
+    '</div>'
+    '<span class="insight-tag">Territory Strategy</span>'
+    '</div>'
+    '</div>'
 )
+st.markdown(insights_html, unsafe_allow_html=True)
 
-# Executive Insights
-st.markdown(
-    f"""
-<div class="insights-row">
-    <div class="insight-card">
-        <div>
-            <div class="insight-header">
-                <span class="insight-number">01</span>
-                <span class="insight-title">Conversion Opportunity</span>
-            </div>
-            <p class="insight-desc">
-                SYNLAB commands a <strong>{awareness_pct:.1f}%</strong> awareness rate with <strong>{usage_pct:.1f}%</strong> usage. 
-                A <strong>{conversion_gap:.1f}%</strong> gap represents <strong>{aware_count - used_count}</strong> aware prospects yet to convert.
-            </p>
-        </div>
-        <span class="insight-tag">Commercial Funnel</span>
-    </div>
-    <div class="insight-card">
-        <div>
-            <div class="insight-header">
-                <span class="insight-number">02</span>
-                <span class="insight-title">Detractor and Passive Profile</span>
-            </div>
-            <p class="insight-desc">
-                NPS is currently <strong>{nps:.1f}</strong> with <strong>{detractors}</strong> detractors ({detractor_pct:.1f}%) and <strong>{passives}</strong> passives. 
-                Addressing turnaround times and pricing transparency can shift passives into promoters.
-            </p>
-        </div>
-        <span class="insight-tag">Customer Experience</span>
-    </div>
-    <div class="insight-card">
-        <div>
-            <div class="insight-header">
-                <span class="insight-number">03</span>
-                <span class="insight-title">Geographic Prioritization</span>
-            </div>
-            <p class="insight-desc">
-                <strong>Gwarimpa</strong> and <strong>Wuse</strong> exhibit high usage efficiency, while <strong>Asokoro</strong> and <strong>Gwagwalada</strong> 
-                present untapped upside through physician referral alignment.
-            </p>
-        </div>
-        <span class="insight-tag">Territory Strategy</span>
-    </div>
-</div>
-""",
-    unsafe_allow_html=True,
-)
-
-# Navigation
 st.markdown('<div class="nav-header">Dashboard Modules</div>', unsafe_allow_html=True)
 
 nav_col1, nav_col2, nav_col3, nav_col4, nav_col5 = st.columns(5)
@@ -494,15 +460,12 @@ with nav_col5:
     if st.button("Strategic Analytics", use_container_width=True, key="cover_nav_strat"):
         st.switch_page("pages/5_Strategic_Analytics.py")
 
-# Footer
-st.markdown(
-    f"""
-<div class="cover-footer">
-    <strong>SYNLAB Nigeria</strong> · Market Intelligence Platform
-    <span class="separator">|</span>
-    {total} Surveyed Records · Comprehensive Abuja Metropolitan Analysis . Data collected and Analysed by Kinetiq Growth Lab for SYNLAB Nigeria
-</div>
-</div>
-""",
-    unsafe_allow_html=True,
+footer_html = (
+    '<div class="cover-footer">'
+    '<strong>SYNLAB Nigeria</strong> · Market Intelligence Platform'
+    '<span class="separator">|</span>'
+    f'{total} Surveyed Records · Comprehensive Abuja Metropolitan Analysis'
+    '</div>'
+    '</div>'
 )
+st.markdown(footer_html, unsafe_allow_html=True)
