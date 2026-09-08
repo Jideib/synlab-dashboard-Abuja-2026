@@ -459,7 +459,7 @@ with col1:
 
 with col2:
     st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-    st.markdown("""<h4 style="color: #003765; margin: 0 0 12px 0;">Brand Discovery Channels (Question 8)</h4>""", unsafe_allow_html=True)
+    st.markdown("""<h4 style="color: #003765; margin: 0 0 12px 0;">Brand Discovery Channels</h4>""", unsafe_allow_html=True)
 
     if q8_col and q8_col in data.columns:
         q8_counts = data[q8_col].dropna().value_counts().reset_index()
