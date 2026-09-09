@@ -271,14 +271,8 @@ st.markdown(
 @st.cache_data
 def load_data():
     paths = [
-        "data/synlab_clean.csv",
-        "synlab_clean.csv",
-        "data/SYNLAB_Surveys_Cleaned_498.csv",
-        "SYNLAB_Surveys_Cleaned_498.csv",
-        "data/synlab_clean_standardized.csv",
-        "synlab_clean_standardized.csv",
-        "../data/synlab_clean.csv",
-        "../synlab_clean.csv",
+        "data/synlab_clean_deduped.csv",
+        
     ]
     for path in paths:
         if os.path.exists(path):

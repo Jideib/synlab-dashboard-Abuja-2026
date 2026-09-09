@@ -167,14 +167,7 @@ st.markdown(
 @st.cache_data
 def load_data():
     paths = [
-        "data/synlab_clean.csv",
-        "synlab_clean.csv",
-        "data/SYNLAB_Surveys_Cleaned_498.csv",
-        "SYNLAB_Surveys_Cleaned_498.csv",
-        "data/synlab_clean_standardized.csv",
-        "synlab_clean_standardized.csv",
-        "../data/synlab_clean.csv",
-        "../synlab_clean.csv",
+        "data/synlab_clean_deduped.csv",
     ]
     for path in paths:
         if os.path.exists(path):
@@ -194,7 +187,7 @@ def load_data():
 data = load_data()
 
 if data.empty:
-    st.error("Data file not found. Please ensure synlab_clean.csv is placed in the data folder.")
+    st.error("Data file not found. Please ensure synlab_clean_deduped.csv is placed in the data folder.")
     st.stop()
 
 def find_col(df, patterns):
@@ -220,7 +213,6 @@ awareness_pct = (aware_count / total * 100) if total > 0 else 0.0
 usage_pct = (used_count / total * 100) if total > 0 else 0.0
 conversion_rate = (used_count / aware_count * 100) if aware_count > 0 else 0.0
 
-# CSAT & Mean Rating across touchpoints
 cx_alt_cols = [
     "cx_access_alt", "cx_wait_time", "cx_professionalism_alt",
     "cx_communication", "cx_result_speed_alt", "cx_accuracy_alt",
@@ -244,23 +236,28 @@ if len(all_ratings) > 0:
     csat_pct = round(sum(1 for r in all_ratings if r >= 4) / len(all_ratings) * 100, 1)
     avg_rating = round(sum(all_ratings) / len(all_ratings), 2)
 else:
-    csat_pct = 79.3
-    avg_rating = 4.09
+    csat_pct = 80.1
+    avg_rating = 4.12
 
-acc_mean = 4.25
-acc_sat_rate = 86.0
+acc_mean = 4.31
+acc_sat_rate = 88.1
 if "cx_accuracy_alt" in data.columns:
     acc_s = data["cx_accuracy_alt"].map(rating_map).dropna()
     if len(acc_s) > 0:
         acc_mean = round(acc_s.mean(), 2)
         acc_sat_rate = round((acc_s >= 4).sum() / len(acc_s) * 100, 1)
 
-# Customer Experience NPS (Strictly among customers who USED SYNLAB, N = 189)
-cx_nps = 0.5
-cx_promoters = 59
-cx_passives = 72
-cx_detractors = 58
-cx_valid_count = 189
+# Customer Experience NPS (Strictly among customers who USED SYNLAB)
+cx_promoters = 26
+cx_passives = 35
+cx_detractors = 25
+cx_valid_count = 86
+cx_promoter_pct = round(cx_promoters / cx_valid_count * 100, 1)
+cx_passive_pct = round(cx_passives / cx_valid_count * 100, 1)
+cx_detractor_pct = round(cx_detractors / cx_valid_count * 100, 1)
+
+# Direct raw formula gives exactly 1.2
+cx_nps = round((cx_promoters - cx_detractors) / cx_valid_count * 100, 1)
 
 if nps_col and used_col and nps_col in data.columns and used_col in data.columns:
     data[nps_col] = pd.to_numeric(data[nps_col], errors="coerce")
@@ -273,9 +270,10 @@ if nps_col and used_col and nps_col in data.columns and used_col in data.columns
         cx_promoter_pct = round(cx_promoters / cx_valid_count * 100, 1)
         cx_passive_pct = round(cx_passives / cx_valid_count * 100, 1)
         cx_detractor_pct = round(cx_detractors / cx_valid_count * 100, 1)
-        cx_nps = round(cx_promoter_pct - cx_detractor_pct, 1)
+        # Directly compute on raw counts to avoid intermediate rounding discrepancy
+        cx_nps = round((cx_promoters - cx_detractors) / cx_valid_count * 100, 1)
 
-wtp_pcts = {"Below ₦20,000": 23.1, "₦20,000-50,000": 41.6, "₦50,000-100,000": 19.6, "₦100,000-200,000": 13.7, "Above ₦200,000": 2.1}
+wtp_pcts = {"Below ₦20,000": 27.4, "₦20,000-50,000": 39.8, "₦50,000-100,000": 17.4, "₦100,000-200,000": 13.9, "Above ₦200,000": 1.5}
 wtp_median = "₦20,000-50,000"
 if wtp_col and wtp_col in data.columns:
     wtp_clean = data[data[wtp_col].notna() & (data[wtp_col] != "I would not purchase this type of package")]
@@ -285,8 +283,6 @@ if wtp_col and wtp_col in data.columns:
         wtp_pcts[tier] = round(cnt / wtp_valid_n * 100, 1) if wtp_valid_n > 0 else 0.0
 
 mass_market_pct = round(wtp_pcts.get("Below ₦20,000", 0) + wtp_pcts.get("₦20,000-50,000", 0), 1)
-if mass_market_pct == 64.6:
-    mass_market_pct = 64.7
 
 st.markdown(
     """
@@ -409,7 +405,7 @@ with col8:
 st.markdown("<div style='margin-top: 18px;'></div>", unsafe_allow_html=True)
 
 # ===== ROW 3: CUSTOMER EXPERIENCE (CX) NPS PROFILE =====
-st.markdown("<div style='font-size: 13px; font-weight: 700; color: #003765; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;'>3. Customer Experience (CX) NPS · Verified Customers (N = 189)</div>", unsafe_allow_html=True)
+st.markdown("<div style='font-size: 13px; font-weight: 700; color: #003765; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;'>3. Customer Experience (CX) NPS · Verified Customers</div>", unsafe_allow_html=True)
 col9, col10, col11, col12 = st.columns(4)
 
 with col9:
@@ -432,7 +428,7 @@ with col10:
         f"""
     <div class="metric-card metric-excellent">
         <div class="metric-label">Customer Promoters (9-10)</div>
-        <div class="metric-value">{round(cx_promoters / cx_valid_count * 100, 1)}%</div>
+        <div class="metric-value">{cx_promoter_pct:.1f}%</div>
         <div class="metric-sub">{cx_promoters} Active Brand Champions</div>
     </div>
     """,
@@ -444,7 +440,7 @@ with col11:
         f"""
     <div class="metric-card metric-average">
         <div class="metric-label">Customer Passives (7-8)</div>
-        <div class="metric-value">{round(cx_passives / cx_valid_count * 100, 1)}%</div>
+        <div class="metric-value">{cx_passive_pct:.1f}%</div>
         <div class="metric-sub">{cx_passives} Potential Advocates</div>
     </div>
     """,
@@ -456,7 +452,7 @@ with col12:
         f"""
     <div class="metric-card metric-attention">
         <div class="metric-label">Customer Detractors (0-6)</div>
-        <div class="metric-value">{round(cx_detractors / cx_valid_count * 100, 1)}%</div>
+        <div class="metric-value">{cx_detractor_pct:.1f}%</div>
         <div class="metric-sub">{cx_detractors} Retention Targets</div>
     </div>
     """,
@@ -515,7 +511,7 @@ with col_c1:
             )
             .reset_index()
         )
-        loc_data = loc_data[loc_data["Count"] >= 15].sort_values("Awareness", ascending=False)
+        loc_data = loc_data[loc_data["Count"] >= 10].sort_values("Awareness", ascending=False)
 
         fig_loc = px.bar(
             loc_data,
@@ -584,7 +580,7 @@ with col_in1:
         <div class="insight-number">01</div>
         <div class="insight-title">Conversion Advantage</div>
         <div class="insight-desc">
-            SYNLAB captures a <strong>{conversion_rate:.1f}%</strong> conversion rate from brand awareness ({aware_count}) to active trial ({used_count}), indicating strong customer activation upon brand discovery.
+            SYNLAB captures a <strong>{conversion_rate:.1f}%</strong> trial conversion rate from aware prospects ({aware_count}) to active customers ({used_count}), indicating strong commercial capture upon brand discovery.
         </div>
     </div>
     """,
@@ -598,7 +594,7 @@ with col_in2:
         <div class="insight-number">02</div>
         <div class="insight-title">High Service CSAT</div>
         <div class="insight-desc">
-            Aggregate customer satisfaction reaches <strong>{csat_pct:.1f}%</strong> (mean rating <strong>{avg_rating:.2f}/5</strong>). Accuracy leads at 86.0%, establishing a dependable diagnostic baseline.
+            Aggregate customer satisfaction reaches <strong>{csat_pct:.1f}%</strong> (mean rating <strong>{avg_rating:.2f}/5</strong>). Accuracy leads touchpoints at {acc_sat_rate:.1f}%, establishing an accredited diagnostic benchmark.
         </div>
     </div>
     """,
@@ -612,7 +608,7 @@ with col_in3:
         <div class="insight-number">03</div>
         <div class="insight-title">Verified Customer Loyalty</div>
         <div class="insight-desc">
-            Customer Experience NPS among verified customers is positive at <strong>+{cx_nps:.1f}</strong> (N={cx_valid_count}), backed by <strong>{cx_promoters}</strong> active brand champions and <strong>{cx_passives}</strong> potential advocates.
+            Customer Experience NPS among verified customers is positive at <strong>+{cx_nps:.1f}</strong> (N={cx_valid_count}), backed by <strong>{cx_promoters}</strong> active champions and <strong>{cx_passives}</strong> potential advocates.
         </div>
     </div>
     """,
@@ -626,7 +622,7 @@ with col_in4:
         <div class="insight-number">04</div>
         <div class="insight-title">Pricing Sweet Spot</div>
         <div class="insight-desc">
-            <strong>{mass_market_pct:.1f}%</strong> of survey respondents seek health screening packages priced below ₦50,000, establishing a clear commercial window for retail checkup adoption.
+            <strong>{mass_market_pct:.1f}%</strong> of survey respondents seek health screening packages priced at or below ₦50,000, establishing the primary price corridor for mass health checkup adoption.
         </div>
     </div>
     """,

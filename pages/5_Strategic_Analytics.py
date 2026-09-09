@@ -1,19 +1,27 @@
 # pages/5_Strategic_Analytics.py
 import os
-import warnings
 import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
+from PIL import Image
 
-st.set_page_config(
-    page_title="Strategic Analytics | SYNLAB Nigeria",
-    layout="wide",
-    initial_sidebar_state="collapsed",
-)
-
-warnings.filterwarnings("ignore")
+try:
+    icon = Image.open("assets/synlab_logo.png")
+    st.set_page_config(
+        page_title="Strategic Analytics | SYNLAB Nigeria",
+        page_icon=icon,
+        layout="wide",
+        initial_sidebar_state="collapsed",
+    )
+except Exception:
+    st.set_page_config(
+        page_title="Strategic Analytics | SYNLAB Nigeria",
+        page_icon="assets/synlab_logo.png",
+        layout="wide",
+        initial_sidebar_state="collapsed",
+    )
 
 st.markdown(
     """
@@ -133,20 +141,12 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# ===== DATA LOADER =====
 @st.cache_data
 def load_data():
-    possible_paths = [
-        "data/synlab_clean.csv",
-        "synlab_clean.csv",
-        "data/SYNLAB_Surveys_Cleaned_498.csv",
-        "SYNLAB_Surveys_Cleaned_498.csv",
-        "data/synlab_clean_standardized.csv",
-        "synlab_clean_standardized.csv",
-        "../data/synlab_clean.csv",
-        "../synlab_clean.csv",
+    paths = [
+        "data/synlab_clean_deduped.csv",
     ]
-    for path in possible_paths:
+    for path in paths:
         if os.path.exists(path):
             try:
                 df = pd.read_csv(path, sep=None, engine="python", encoding="utf-8-sig")
@@ -164,7 +164,7 @@ def load_data():
 data = load_data()
 
 if data.empty:
-    st.error("Data file not found. Please ensure synlab_clean.csv is located in the data directory.")
+    st.error("Data file not found. Please ensure synlab_clean_deduped.csv is located in the data directory.")
     st.stop()
 
 total = len(data)
@@ -179,16 +179,13 @@ def find_col(df, patterns):
 aware_col = find_col(data, ["aware_synlab", "aware of?/synlab"])
 used_col = find_col(data, ["used_synlab", "used the services of any of the following laboratories?/synlab"])
 wtp_col = find_col(data, ["wtp_package", "price tier", "wtp"])
+pimp_col = find_col(data, ["price_importance", "price matters"])
 
-aware_count = int(data[aware_col].sum()) if aware_col else 269
-used_count = int(data[used_col].sum()) if used_col else 209
-
-# Header
 st.markdown(
     """
 <div class="page-header">
     <h1>Strategic Analytics & Advanced Models</h1>
-    <p>Service gap priorities, switching vulnerability, visit intent, channel preferences, and action roadmap</p>
+    <p>Service gap priorities, occupation price elasticity, digital channel preferences, and prioritized action roadmap</p>
 </div>
 """,
     unsafe_allow_html=True,
@@ -200,14 +197,14 @@ st.markdown("<h4 style='color: #003765; margin: 0 0 12px 0;'>Service Gap Analysi
 col_g1, col_g2 = st.columns(2)
 
 gap_data = [
-    {"Metric": "Diagnostic Accuracy", "Importance": 94, "Performance": 4.25, "Gap": 0.25},
-    {"Metric": "Professionalism", "Importance": 88, "Performance": 4.16, "Gap": 0.28},
-    {"Metric": "Result Turnaround", "Importance": 86, "Performance": 4.17, "Gap": 0.31},
-    {"Metric": "Communication", "Importance": 82, "Performance": 4.19, "Gap": 0.27},
-    {"Metric": "Wait Time", "Importance": 79, "Performance": 4.12, "Gap": 0.35},
-    {"Metric": "Location Access", "Importance": 76, "Performance": 4.09, "Gap": 0.38},
-    {"Metric": "Digital Experience", "Importance": 74, "Performance": 3.91, "Gap": 0.58},
-    {"Metric": "Pricing & Value", "Importance": 85, "Performance": 3.83, "Gap": 0.65},
+    {"Metric": "Diagnostic Accuracy", "Importance": 94, "Performance": 4.31, "Gap": 0.22},
+    {"Metric": "Professionalism", "Importance": 88, "Performance": 4.22, "Gap": 0.25},
+    {"Metric": "Result Turnaround", "Importance": 86, "Performance": 4.21, "Gap": 0.29},
+    {"Metric": "Communication", "Importance": 82, "Performance": 4.22, "Gap": 0.24},
+    {"Metric": "Wait Time", "Importance": 79, "Performance": 4.05, "Gap": 0.38},
+    {"Metric": "Location Access", "Importance": 76, "Performance": 4.06, "Gap": 0.39},
+    {"Metric": "Digital Experience", "Importance": 74, "Performance": 4.03, "Gap": 0.48},
+    {"Metric": "Pricing & Value", "Importance": 85, "Performance": 3.92, "Gap": 0.59},
 ]
 gap_df = pd.DataFrame(gap_data)
 
@@ -217,7 +214,7 @@ with col_g1:
 
     fig_gap = go.Figure()
     for _, row in gap_df.iterrows():
-        color = "#003765" if row["Gap"] < 0.35 else "#0077AD" if row["Gap"] < 0.50 else "#2C8FC7"
+        color = "#003765" if row["Gap"] < 0.30 else "#0077AD" if row["Gap"] < 0.45 else "#2C8FC7"
         fig_gap.add_trace(
             go.Scatter(
                 x=[row["Performance"]],
@@ -231,8 +228,8 @@ with col_g1:
             )
         )
 
-    fig_gap.add_shape(type="line", x0=4.1, y0=68, x1=4.1, y1=98, line=dict(color="rgba(0,0,0,0.15)", width=1, dash="dash"))
-    fig_gap.add_shape(type="line", x0=3.7, y0=80, x1=4.4, y1=80, line=dict(color="rgba(0,0,0,0.15)", width=1, dash="dash"))
+    fig_gap.add_shape(type="line", x0=4.15, y0=68, x1=4.15, y1=98, line=dict(color="rgba(0,0,0,0.15)", width=1, dash="dash"))
+    fig_gap.add_shape(type="line", x0=3.85, y0=80, x1=4.4, y1=80, line=dict(color="rgba(0,0,0,0.15)", width=1, dash="dash"))
 
     fig_gap.update_layout(
         plot_bgcolor="rgba(0,0,0,0)",
@@ -240,7 +237,7 @@ with col_g1:
         font_color="#003765",
         xaxis_title="Performance Rating (Scale 1-5)",
         yaxis_title="Customer Importance Ranking (%)",
-        xaxis=dict(range=[3.7, 4.4]),
+        xaxis=dict(range=[3.85, 4.4]),
         yaxis=dict(range=[70, 100]),
         showlegend=False,
         height=330,
@@ -256,7 +253,7 @@ with col_g2:
     gap_df_sorted = gap_df.sort_values("Gap", ascending=False)
     for _, row in gap_df_sorted.iterrows():
         pct = round((1 - (row["Gap"] / 0.8)) * 100, 1)
-        color = "#003765" if row["Gap"] < 0.35 else "#0077AD" if row["Gap"] < 0.50 else "#2C8FC7"
+        color = "#003765" if row["Gap"] < 0.30 else "#0077AD" if row["Gap"] < 0.45 else "#2C8FC7"
 
         st.markdown(
             f"""
@@ -276,89 +273,85 @@ with col_g2:
     st.markdown(
         """
     <div style="margin-top: 14px; padding: 10px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 6px; font-size: 11px; color: #475569;">
-        Priority Focus: <strong>Pricing & Value (0.65)</strong> and <strong>Digital Experience (0.58)</strong> exhibit the widest spread between patient expectations and observed service satisfaction ratings.
+        Priority Focus: <strong>Pricing & Value (0.59)</strong> and <strong>Digital Experience (0.48)</strong> show the highest variance between patient expectations and observed service delivery ratings.
     </div>
     """,
         unsafe_allow_html=True,
     )
     st.markdown("</div>", unsafe_allow_html=True)
 
-# ===== 2. VISIT INTENT & SWITCHING DRIVERS =====
+# ===== 2. VISIT INTENT & OCCUPATION PRICE ELASTICITY =====
 st.markdown("<div style='margin-top: 14px;'></div>", unsafe_allow_html=True)
-st.markdown("<h4 style='color: #003765; margin: 0 0 12px 0;'>Patient Visit Drivers & Laboratory Switching Vulnerability</h4>", unsafe_allow_html=True)
+st.markdown("<h4 style='color: #003765; margin: 0 0 12px 0;'>Patient Visit Drivers & Occupation Price Elasticity</h4>", unsafe_allow_html=True)
 
 col_v1, col_v2 = st.columns(2)
 
 with col_v1:
     st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-    st.markdown("<h4 style='color: #003765; margin: 0 0 8px 0;'>Primary Reason for Laboratory Visit</h4>", unsafe_allow_html=True)
+    st.markdown("<h4 style='color: #003765; margin: 0 0 8px 0;'>Primary Reason for Laboratory Visit (Intent)</h4>", unsafe_allow_html=True)
 
-    visit_records = [
-        {"Intent": "Routine Health Check", "Count": 181, "Pct": 36.3},
-        {"Intent": "Doctor's Specific Referral", "Count": 155, "Pct": 31.1},
-        {"Intent": "Monitoring Chronic Condition", "Count": 60, "Pct": 12.0},
-        {"Intent": "Insurance / HMO Mandatory", "Count": 44, "Pct": 8.8},
-        {"Intent": "Pre-Employment Medicals", "Count": 26, "Pct": 5.2},
-    ]
-    visit_df = pd.DataFrame(visit_records).sort_values("Count", ascending=True)
+    q10_col = find_col(data, ["10. Thinking about the last time you used a medical laboratory"])
+    if q10_col and q10_col in data.columns:
+        v_counts = data[q10_col].value_counts().reset_index()
+        v_counts.columns = ["Intent", "Count"]
+        v_counts["Pct"] = (v_counts["Count"] / total * 100).round(1)
 
-    fig_visit = px.bar(
-        visit_df,
-        x="Count",
-        y="Intent",
-        orientation="h",
-        color="Count",
-        color_continuous_scale=["#5BA3D0", "#003765"],
-        text=[f"{c} ({p}%)" for c, p in zip(visit_df["Count"], visit_df["Pct"])],
-    )
-    fig_visit.update_traces(textposition="outside")
-    fig_visit.update_layout(
-        plot_bgcolor="rgba(0,0,0,0)",
-        paper_bgcolor="rgba(0,0,0,0)",
-        font_color="#003765",
-        xaxis_title="Patient Visits",
-        yaxis_title="",
-        showlegend=False,
-        height=290,
-        margin=dict(l=10, r=50, t=10, b=10),
-    )
-    st.plotly_chart(fig_visit, use_container_width=True)
+        fig_visit = px.bar(
+            v_counts.sort_values("Count", ascending=True),
+            x="Count",
+            y="Intent",
+            orientation="h",
+            color="Count",
+            color_continuous_scale=["#5BA3D0", "#003765"],
+            text=[f"{c} ({p}%)" for c, p in zip(v_counts.sort_values("Count", ascending=True)["Count"], v_counts.sort_values("Count", ascending=True)["Pct"])],
+        )
+        fig_visit.update_traces(textposition="outside")
+        fig_visit.update_layout(
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
+            font_color="#003765",
+            xaxis_title="Patient Visits",
+            yaxis_title="",
+            yaxis=dict(tickfont=dict(color="#003765", size=10.5)),
+            showlegend=False,
+            height=290,
+            margin=dict(l=190, r=50, t=10, b=10),
+        )
+        st.plotly_chart(fig_visit, use_container_width=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
 with col_v2:
     st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-    st.markdown("<h4 style='color: #003765; margin: 0 0 8px 0;'>Key Drivers for Switching Laboratories</h4>", unsafe_allow_html=True)
+    st.markdown("<h4 style='color: #003765; margin: 0 0 8px 0;'>Occupation vs. Price Sensitivity Index</h4>", unsafe_allow_html=True)
 
-    switch_records = [
-        {"Driver": "Doctor / HMO Reassignment", "Count": 102, "Pct": 22.2},
-        {"Driver": "Previous Lab Too Expensive", "Count": 78, "Pct": 17.0},
-        {"Driver": "Inconvenient Access / Distance", "Count": 65, "Pct": 14.1},
-        {"Driver": "Inaccurate Results / Quality", "Count": 54, "Pct": 11.7},
-        {"Driver": "Poor Customer Service", "Count": 43, "Pct": 9.3},
-    ]
-    switch_df = pd.DataFrame(switch_records).sort_values("Count", ascending=True)
+    if pimp_col and pimp_col in data.columns and "occupation" in data.columns:
+        pimp_valid = data[data[pimp_col].notna() & data["occupation"].notna()]
+        top_occs = pimp_valid["occupation"].value_counts().head(5).index
+        occ_sub = pimp_valid[pimp_valid["occupation"].isin(top_occs)]
 
-    fig_switch = px.bar(
-        switch_df,
-        x="Count",
-        y="Driver",
-        orientation="h",
-        color="Count",
-        color_continuous_scale=["#7CB8D3", "#003765"],
-        text=[f"{c} ({p}%)" for c, p in zip(switch_df["Count"], switch_df["Pct"])],
-    )
-    fig_switch.update_traces(textposition="outside")
-    fig_switch.update_layout(
-        plot_bgcolor="rgba(0,0,0,0)",
-        paper_bgcolor="rgba(0,0,0,0)",
-        font_color="#003765",
-        xaxis_title="Respondents Citing Reason",
-        yaxis_title="",
-        showlegend=False,
-        height=290,
-        margin=dict(l=10, r=50, t=10, b=10),
-    )
-    st.plotly_chart(fig_switch, use_container_width=True)
+        occ_pimp = pd.crosstab(occ_sub["occupation"], occ_sub[pimp_col], normalize="index") * 100
+        pimp_categories = [c for c in ["Price matters but quality comes first", "Price is important but not the most important factor", "Price is the most important factor", "Price is not a significant factor in my decision"] if c in occ_pimp.columns]
+        occ_pimp = occ_pimp[pimp_categories].reset_index()
+
+        fig_op = px.bar(
+            occ_pimp,
+            x="occupation",
+            y=pimp_categories,
+            barmode="stack",
+            color_discrete_sequence=["#003765", "#0077AD", "#7CB8D3", "#CBD5E1"],
+        )
+        fig_op.update_layout(
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
+            font_color="#003765",
+            xaxis_title="",
+            xaxis=dict(tickfont=dict(size=10.5, color="#003765")),
+            yaxis_title="Proportion (%)",
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5, font=dict(size=10.5)),
+            height=290,
+            margin=dict(l=10, r=10, t=30, b=10),
+        )
+        st.plotly_chart(fig_op, use_container_width=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
 # ===== 3. DIGITAL CHANNELS & BOOKING PREFERENCES =====
@@ -371,135 +364,63 @@ with col_ch1:
     st.markdown('<div class="chart-container">', unsafe_allow_html=True)
     st.markdown("<h4 style='color: #003765; margin: 0 0 8px 0;'>Preferred Result Delivery Channel</h4>", unsafe_allow_html=True)
 
-    result_access_df = pd.DataFrame({
-        "Channel": ["Physical Printout", "Email PDF", "Online Patient Portal", "Automated WhatsApp", "No Preference"],
-        "Count": [153, 130, 80, 63, 40],
-    })
+    if "pref_result_access" in data.columns:
+        res_counts = data["pref_result_access"].value_counts().reset_index()
+        res_counts.columns = ["Channel", "Count"]
 
-    fig_del = px.pie(
-        result_access_df,
-        values="Count",
-        names="Channel",
-        color_discrete_sequence=["#003765", "#0077AD", "#2C8FC7", "#5BA3D0", "#E2E8F0"],
-        hole=0.45,
-    )
-    fig_del.update_layout(
-        plot_bgcolor="rgba(0,0,0,0)",
-        paper_bgcolor="rgba(0,0,0,0)",
-        font_color="#003765",
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5),
-        height=280,
-        margin=dict(l=10, r=10, t=10, b=10),
-    )
-    fig_del.update_traces(textposition="inside", textinfo="percent+label")
-    st.plotly_chart(fig_del, use_container_width=True)
+        fig_del = px.pie(
+            res_counts,
+            values="Count",
+            names="Channel",
+            color_discrete_sequence=["#003765", "#0077AD", "#2C8FC7", "#5BA3D0", "#E2E8F0"],
+            hole=0.45,
+        )
+        fig_del.update_layout(
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
+            font_color="#003765",
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5, font=dict(size=10.5)),
+            height=280,
+            margin=dict(l=10, r=10, t=10, b=10),
+        )
+        fig_del.update_traces(textposition="inside", textinfo="percent+label")
+        st.plotly_chart(fig_del, use_container_width=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
 with col_ch2:
     st.markdown('<div class="chart-container">', unsafe_allow_html=True)
     st.markdown("<h4 style='color: #003765; margin: 0 0 8px 0;'>Preferred Appointment Booking Method</h4>", unsafe_allow_html=True)
 
-    booking_df = pd.DataFrame({
-        "Method": ["Walk-in Without Appointment", "Website Online Portal", "Mobile App", "Direct Phone Call", "HMO / Corporate Portal"],
-        "Count": [159, 79, 69, 65, 35],
-    })
+    if "pref_booking" in data.columns:
+        book_counts = data["pref_booking"].value_counts().reset_index()
+        book_counts.columns = ["Method", "Count"]
+        b_total = book_counts["Count"].sum()
 
-    fig_book = px.bar(
-        booking_df.sort_values("Count", ascending=True),
-        x="Count",
-        y="Method",
-        orientation="h",
-        color="Count",
-        color_continuous_scale=["#5BA3D0", "#003765"],
-        text=[f"{c} ({round(c/465*100, 1)}%)" for c in booking_df.sort_values("Count", ascending=True)["Count"]],
-    )
-    fig_book.update_traces(textposition="outside")
-    fig_book.update_layout(
-        plot_bgcolor="rgba(0,0,0,0)",
-        paper_bgcolor="rgba(0,0,0,0)",
-        font_color="#003765",
-        xaxis_title="Patient Preferences",
-        yaxis_title="",
-        showlegend=False,
-        height=280,
-        margin=dict(l=10, r=50, t=10, b=10),
-    )
-    st.plotly_chart(fig_book, use_container_width=True)
+        fig_book = px.bar(
+            book_counts.sort_values("Count", ascending=True),
+            x="Count",
+            y="Method",
+            orientation="h",
+            color="Count",
+            color_continuous_scale=["#5BA3D0", "#003765"],
+            text=[f"{c} ({round(c/b_total*100, 1)}%)" for c in book_counts.sort_values("Count", ascending=True)["Count"]],
+        )
+        fig_book.update_traces(textposition="outside")
+        fig_book.update_layout(
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
+            font_color="#003765",
+            xaxis_title="Patient Preferences",
+            yaxis_title="",
+            yaxis=dict(tickfont=dict(color="#003765", size=10.5)),
+            showlegend=False,
+            height=280,
+            margin=dict(l=190, r=50, t=10, b=10),
+        )
+        st.plotly_chart(fig_book, use_container_width=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
-# ===== 4. WILLINGNESS TO PAY & PRICE ELASTICITY =====
-st.markdown("<div style='margin-top: 14px;'></div>", unsafe_allow_html=True)
-st.markdown("<h4 style='color: #003765; margin: 0 0 12px 0;'>Willingness to Pay (WTP) & Price Elasticity</h4>", unsafe_allow_html=True)
-
-col_w1, col_w2 = st.columns(2)
-
-with col_w1:
-    st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-    st.markdown("<h4 style='color: #003765; margin: 0 0 8px 0;'>Package Price Tier Preferences</h4>", unsafe_allow_html=True)
-
-    wtp_counts = pd.Series({
-        "Below ₦20,000": 101,
-        "₦20,000-50,000": 182,
-        "₦50,000-100,000": 86,
-        "₦100,000-200,000": 60,
-        "Above ₦200,000": 9,
-    })
-
-    fig_wtp = px.bar(
-        x=wtp_counts.index,
-        y=wtp_counts.values,
-        color=wtp_counts.values,
-        color_continuous_scale=["#5BA3D0", "#003765"],
-        text=[f"{v} ({round(v/438*100, 1)}%)" for v in wtp_counts.values],
-    )
-    fig_wtp.update_traces(textposition="outside")
-    fig_wtp.update_layout(
-        plot_bgcolor="rgba(0,0,0,0)",
-        paper_bgcolor="rgba(0,0,0,0)",
-        font_color="#003765",
-        xaxis_title="",
-        yaxis_title="Respondents",
-        showlegend=False,
-        height=280,
-        margin=dict(l=10, r=10, t=20, b=20),
-    )
-    st.plotly_chart(fig_wtp, use_container_width=True)
-    st.markdown("</div>", unsafe_allow_html=True)
-
-with col_w2:
-    st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-    st.markdown("<h4 style='color: #003765; margin: 0 0 8px 0;'>Price Sensitivity vs. Quality Trade-Off</h4>", unsafe_allow_html=True)
-
-    price_imp_df = pd.DataFrame({
-        "Perception": ["Quality comes first, price matters", "Price important but not decisive", "Price is most important", "Price is not significant"],
-        "Count": [271, 99, 44, 36],
-        "Pct": [60.2, 22.0, 9.8, 8.0],
-    })
-
-    fig_pimp = px.bar(
-        price_imp_df.sort_values("Count", ascending=True),
-        x="Count",
-        y="Perception",
-        orientation="h",
-        color="Count",
-        color_continuous_scale=["#5BA3D0", "#003765"],
-        text=[f"{c} ({p}%)" for c, p in zip(price_imp_df.sort_values("Count", ascending=True)["Count"], price_imp_df.sort_values("Count", ascending=True)["Pct"])],
-    )
-    fig_pimp.update_traces(textposition="outside")
-    fig_pimp.update_layout(
-        plot_bgcolor="rgba(0,0,0,0)",
-        paper_bgcolor="rgba(0,0,0,0)",
-        font_color="#003765",
-        xaxis_title="Respondents",
-        yaxis_title="",
-        showlegend=False,
-        height=280,
-        margin=dict(l=10, r=50, t=10, b=10),
-    )
-    st.plotly_chart(fig_pimp, use_container_width=True)
-    st.markdown("</div>", unsafe_allow_html=True)
-
-# ===== 5. ADVANCED MODELS & CLUSTERING =====
+# ===== 4. ADVANCED MODELS & CLUSTERING =====
 st.markdown("<div style='margin-top: 14px;'></div>", unsafe_allow_html=True)
 st.markdown("<h4 style='color: #003765; margin: 0 0 12px 0;'>Advanced Predictive & Clustering Models</h4>", unsafe_allow_html=True)
 
@@ -509,7 +430,7 @@ with col_m1:
     st.markdown(
         """
     <div class="model-card">
-        <div class="model-value">79.3%</div>
+        <div class="model-value">80.1%</div>
         <div class="model-label">Aggregate CSAT</div>
         <div class="model-sub">Top-2 Box Satisfaction</div>
     </div>
@@ -521,7 +442,7 @@ with col_m2:
     st.markdown(
         """
     <div class="model-card">
-        <div class="model-value">77.7%</div>
+        <div class="model-value">74.2%</div>
         <div class="model-label">Conversion Efficiency</div>
         <div class="model-sub">Aware-to-Used Ratio</div>
     </div>
@@ -553,7 +474,6 @@ with col_m4:
         unsafe_allow_html=True,
     )
 
-# Cluster Visualizations
 st.markdown("<div style='margin-top: 16px;'></div>", unsafe_allow_html=True)
 col_c1, col_c2 = st.columns(2)
 
@@ -627,7 +547,7 @@ with col_c2:
     st.plotly_chart(fig_dr, use_container_width=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
-# ===== 6. PRIORITIZED ACTION ROADMAP =====
+# ===== 5. PRIORITIZED ACTION ROADMAP =====
 st.markdown("<div style='margin-top: 14px;'></div>", unsafe_allow_html=True)
 st.markdown("<h4 style='color: #003765; margin: 0 0 12px 0;'>Prioritized Strategic Action Roadmap</h4>", unsafe_allow_html=True)
 
@@ -635,31 +555,31 @@ actions = [
     {
         "priority": "P1 · HIGH",
         "title": "Digital Delivery Modernization (Automated WhatsApp & Portal)",
-        "desc": "Automate WhatsApp and email report delivery to address the 58.6% digital delivery preference and eliminate physical collection delays.",
+        "desc": "Automate WhatsApp and email report dispatch to address patient delivery preferences and eliminate physical collection delays.",
         "class": "priority-high",
     },
     {
         "priority": "P1 · HIGH",
         "title": "Preventive Screening Packages (< ₦50,000)",
-        "desc": "Launch structured wellness profiles aligned with the 64.6% of respondents seeking packages priced at or below ₦50,000.",
+        "desc": "Launch structured wellness profiles aligned with the 67.2% of respondents seeking packages priced at or below ₦50,000.",
         "class": "priority-high",
     },
     {
         "priority": "P2 · MEDIUM",
         "title": "Physician Network & B2B Clinical Retention",
-        "desc": "Mitigate the 22.2% churn risk from doctor/HMO reassignments by formalizing clinical partnerships with private practitioners across Wuse and Asokoro.",
+        "desc": "Mitigate clinical turnover caused by doctor/HMO reassignments by formalizing clinical partnerships with private practitioners across Wuse and Asokoro.",
         "class": "priority-medium",
     },
     {
         "priority": "P2 · MEDIUM",
         "title": "Corridor-Specific Service Optimization",
-        "desc": "Deploy mobile phlebotomy outreach in Gwagwalada (86.6% CSAT) while optimizing specimen collection workflows in Kubwa to reduce wait-time friction.",
+        "desc": "Deploy mobile phlebotomy outreach in Gwagwalada while optimizing specimen collection workflows in Kubwa to reduce wait-time friction.",
         "class": "priority-medium",
     },
     {
         "priority": "P3 · LOW",
         "title": "Corporate Wellness & Executive Retainers",
-        "desc": "Package annual health audits for corporate employers targeting the 35–44 working professional cohort (57.6% of the survey base).",
+        "desc": "Package annual health audits for corporate employers targeting the 35–44 working professional cohort.",
         "class": "priority-low",
     },
 ]

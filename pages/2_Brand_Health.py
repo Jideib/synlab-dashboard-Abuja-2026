@@ -212,14 +212,7 @@ st.markdown(
 @st.cache_data
 def load_data():
     paths = [
-        "data/synlab_clean.csv",
-        "synlab_clean.csv",
-        "data/SYNLAB_Surveys_Cleaned_498.csv",
-        "SYNLAB_Surveys_Cleaned_498.csv",
-        "data/synlab_clean_standardized.csv",
-        "synlab_clean_standardized.csv",
-        "../data/synlab_clean.csv",
-        "../synlab_clean.csv",
+        "data/synlab_clean_deduped.csv",
     ]
     for path in paths:
         if os.path.exists(path):
@@ -239,7 +232,7 @@ def load_data():
 data = load_data()
 
 if data.empty:
-    st.error("Data file not found. Please ensure synlab_clean.csv is located in the data directory.")
+    st.error("Data file not found. Please ensure synlab_clean_deduped.csv is located in the data directory.")
     st.stop()
 
 def find_col(df, patterns):
@@ -262,37 +255,21 @@ aware = int(data[aware_col].sum())
 used = int(data[used_col].sum())
 
 # Overall CX NPS
-cx_promoters = 59
-cx_passives = 72
-cx_detractors = 58
-cx_valid_count = 189
-cx_nps = 0.5
+cx_promoters = 26
+cx_passives = 35
+cx_detractors = 25
+cx_valid_count = 86
+cx_nps = 1.2
 
-# Overall Brand Aware NPS
-brand_promoters = 77
-brand_passives = 84
-brand_detractors = 89
-brand_valid_count = 250
-brand_nps = -4.8
-
-if nps_col and nps_col in data.columns:
+if nps_col and used_col and nps_col in data.columns and used_col in data.columns:
     data[nps_col] = pd.to_numeric(data[nps_col], errors="coerce")
-    nps_sub = data[data[nps_col].notna()]
-    if len(nps_sub) > 0:
-        brand_valid_count = len(nps_sub)
-        brand_promoters = int((nps_sub[nps_col] >= 9).sum())
-        brand_passives = int(((nps_sub[nps_col] >= 7) & (nps_sub[nps_col] <= 8)).sum())
-        brand_detractors = int((nps_sub[nps_col] <= 6).sum())
-        brand_nps = round((brand_promoters - brand_detractors) / brand_valid_count * 100, 1)
-
-    if used_col and used_col in data.columns:
-        used_valid = data[(data[used_col] == 1) & (data[nps_col].notna())]
-        if len(used_valid) > 0:
-            cx_valid_count = len(used_valid)
-            cx_promoters = int((used_valid[nps_col] >= 9).sum())
-            cx_passives = int(((used_valid[nps_col] >= 7) & (used_valid[nps_col] <= 8)).sum())
-            cx_detractors = int((used_valid[nps_col] <= 6).sum())
-            cx_nps = round((cx_promoters - cx_detractors) / cx_valid_count * 100, 1)
+    used_valid = data[(data[used_col] == 1) & (data[nps_col].notna())]
+    if len(used_valid) > 0:
+        cx_valid_count = len(used_valid)
+        cx_promoters = int((used_valid[nps_col] >= 9).sum())
+        cx_passives = int(((used_valid[nps_col] >= 7) & (used_valid[nps_col] <= 8)).sum())
+        cx_detractors = int((used_valid[nps_col] <= 6).sum())
+        cx_nps = round((cx_promoters - cx_detractors) / cx_valid_count * 100, 1)
 
 def clean_tom(x):
     if pd.isna(x):
@@ -335,7 +312,7 @@ st.markdown(
     """
 <div class="page-header">
     <h1>Brand Health and Awareness</h1>
-    <p>Conversion funnel, customer acquisition channels, regional sentiment segments, and touchpoint perception</p>
+    <p>Conversion funnel, customer acquisition channels, regional sentiment breakdown, and touchpoint perception</p>
 </div>
 """,
     unsafe_allow_html=True,
@@ -376,7 +353,7 @@ st.markdown(
     <span style="font-size: 13px; color: #003765; font-weight: 600;">{used_to_promoters_dropoff}% Drop-off (Used to Promoters)</span>
 </div>
 <div style="margin-top: 12px; padding: 12px 16px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; text-align: center;">
-    <span style="font-size: 13px; color: #003765;">Commercial Opportunity: <strong>{aware - used}</strong> aware prospects have not yet tested at SYNLAB. Converting 25% of this group represents <strong>₦525,000</strong> in immediate checkup package revenue.</span>
+    <span style="font-size: 13px; color: #003765;">Commercial Opportunity: <strong>{aware - used}</strong> aware prospects have not yet tested at SYNLAB. Converting 25% represents <strong>₦280,000</strong> in immediate checkup package revenue.</span>
 </div>
 """,
     unsafe_allow_html=True,
@@ -459,7 +436,7 @@ with col1:
 
 with col2:
     st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-    st.markdown("""<h4 style="color: #003765; margin: 0 0 12px 0;">Brand Discovery Channels</h4>""", unsafe_allow_html=True)
+    st.markdown("""<h4 style="color: #003765; margin: 0 0 12px 0;">Brand Discovery Channels (Question 8)</h4>""", unsafe_allow_html=True)
 
     if q8_col and q8_col in data.columns:
         q8_counts = data[q8_col].dropna().value_counts().reset_index()
@@ -493,14 +470,14 @@ with col2:
         st.markdown(
             f"""
         <div style="margin-top: 8px; padding: 10px 14px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 6px; font-size: 11.5px; color: #475569;">
-            Acquisition Engine: <strong>{top_channel['Channel']}</strong> accounts for <strong>{top_channel['Pct']}%</strong> of discovery, followed by clinical doctor referrals (22.7%).
+            Acquisition Engine: <strong>{top_channel['Channel']}</strong> accounts for <strong>{top_channel['Pct']}%</strong> of discovery, followed by clinical doctor referrals.
         </div>
         """,
             unsafe_allow_html=True,
         )
     st.markdown("</div>", unsafe_allow_html=True)
 
-# ===== 3. REGIONAL ADVOCACY SEGMENTS: PROMOTERS, PASSIVES & DETRACTORS =====
+# ===== 3. REGIONAL ADVOCACY BREAKDOWN: PROMOTERS, PASSIVES & DETRACTORS =====
 st.markdown('<div class="chart-container">', unsafe_allow_html=True)
 st.markdown("""<h4 style="color: #003765; margin: 0 0 12px 0;">Regional Advocacy Breakdown: Promoters, Passives & Detractors</h4>""", unsafe_allow_html=True)
 
@@ -561,7 +538,7 @@ Total Evaluated: {row['Total_Sample']} Respondents
 
 st.markdown("<div style='margin-top: 14px;'></div>", unsafe_allow_html=True)
 
-# 100% Stacked Horizontal Component Bar Chart (Crystal clear distribution)
+# 100% Stacked Component Bar Chart
 fig_seg = go.Figure()
 
 fig_seg.add_trace(go.Bar(
@@ -754,7 +731,7 @@ with col_b1:
         <div class="insight-number">01</div>
         <div class="insight-title">Acquisition Engine</div>
         <div class="insight-desc">
-            Personal recommendations (<strong>34.8%</strong>) and physician referrals (<strong>22.7%</strong>) account for <strong>57.5%</strong> of discovery, confirming clinical liaisons and word-of-mouth as SYNLAB's primary conversion pipeline.
+            Personal recommendations and physician referrals account for the majority of brand discovery, confirming clinical liaisons and word-of-mouth as SYNLAB's primary conversion pipeline.
         </div>
     </div>
     """,
@@ -768,7 +745,7 @@ with col_b2:
         <div class="insight-number">02</div>
         <div class="insight-title">Advocacy Density</div>
         <div class="insight-desc">
-            <strong>Gwagwalada (42.1%)</strong> and <strong>Wuse (35.2%)</strong> maintain the highest concentration of active promoters, providing organic peer recommendation anchors across central corridors.
+            <strong>Wuse (36.8%)</strong> and <strong>Gwagwalada (31.8%)</strong> maintain the highest proportion of active promoters, providing organic peer recommendation anchors across central corridors.
         </div>
     </div>
     """,
@@ -782,7 +759,7 @@ with col_b3:
         <div class="insight-number">03</div>
         <div class="insight-title">Passives Opportunity</div>
         <div class="insight-desc">
-            <strong>84 respondents (33.6%)</strong> across Abuja rate SYNLAB a 7 or 8. Converting half of this satisfied passive group into active advocates provides an immediate path to double-digit brand advocacy.
+            Over <strong>37% of respondents</strong> across Abuja rate SYNLAB a 7 or 8. Converting half of this satisfied passive group into active advocates provides an immediate path to double-digit brand advocacy.
         </div>
     </div>
     """,
@@ -796,7 +773,7 @@ with col_b4:
         <div class="insight-number">04</div>
         <div class="insight-title">Clinical Moat vs. Value Friction</div>
         <div class="insight-desc">
-            Diagnostic accuracy (<strong>4.25/5</strong>) and staff professionalism (<strong>4.16/5</strong>) anchor clinical excellence, whereas pricing perception (<strong>3.83/5</strong>) represents the single largest friction point for self-paying patients.
+            Diagnostic accuracy (<strong>4.31/5</strong>) and staff communication (<strong>4.22/5</strong>) anchor clinical excellence, whereas pricing perception (<strong>3.92/5</strong>) represents the primary friction point for self-paying patients.
         </div>
     </div>
     """,

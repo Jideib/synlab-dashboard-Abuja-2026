@@ -145,14 +145,7 @@ st.markdown(
 @st.cache_data
 def load_data():
     paths = [
-        "data/synlab_clean.csv",
-        "synlab_clean.csv",
-        "data/SYNLAB_Surveys_Cleaned_498.csv",
-        "SYNLAB_Surveys_Cleaned_498.csv",
-        "data/synlab_clean_standardized.csv",
-        "synlab_clean_standardized.csv",
-        "../data/synlab_clean.csv",
-        "../synlab_clean.csv",
+        "data/synlab_clean_deduped.csv",
     ]
     for path in paths:
         if os.path.exists(path):
@@ -172,7 +165,7 @@ def load_data():
 data = load_data()
 
 if data.empty:
-    st.error("Data file not found. Please ensure synlab_clean.csv is located in the data directory.")
+    st.error("Data file not found. Please ensure synlab_clean_deduped.csv is located in the data directory.")
     st.stop()
 
 total = len(data)
@@ -288,7 +281,7 @@ with col_m2:
         <div style="margin-top: 18px; padding: 12px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; text-align: left;">
             <div style="font-size: 13px; color: #003765; font-weight: 700;">Leadership Advantage: +{lead_margin}%</div>
             <div style="font-size: 12px; color: #475569; margin-top: 4px; line-height: 1.5;">
-                SYNLAB commands more than 3x the market usage of its nearest competitor, <strong>{runner_up['name']}</strong> ({runner_up['usage']}%).
+                SYNLAB commands more than 4x the market usage of its nearest commercial competitor, <strong>{runner_up['name']}</strong> ({runner_up['usage']}%).
             </div>
         </div>
     </div>
@@ -364,9 +357,9 @@ with col_pr2:
     st.markdown(
         """
     <div style="font-size: 12px; color: #334155; line-height: 1.7; padding: 6px 0;">
-        <strong>SYNLAB Allegiance (45.6%):</strong> Cited repeatedly for <em>"highest diagnostic accuracy"</em>, <em>"reliable health reports"</em>, and <em>"professional environment"</em>.<br><br>
-        <strong>Hospital Laboratories (11.8%):</strong> Retained by patients whose physicians process samples in-house during clinical consultations.<br><br>
-        <strong>Echo Lab (7.4%):</strong> Driven by ultrasound and imaging combination convenience.
+        <strong>SYNLAB Allegiance:</strong> Cited repeatedly for <em>"highest diagnostic accuracy"</em>, <em>"reliable health reports"</em>, and <em>"professional environment"</em>.<br><br>
+        <strong>Hospital Laboratories:</strong> Retained by patients whose physicians process samples in-house during clinical consultations.<br><br>
+        <strong>Echo Lab:</strong> Driven by ultrasound and imaging combination convenience.
     </div>
     """,
         unsafe_allow_html=True,
@@ -554,9 +547,9 @@ with col_a2:
     st.markdown(
         """
     <div style="padding: 14px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 12px; color: #334155; line-height: 1.7;">
-        <strong>Clinical Benchmark:</strong> Staff professionalism (81.4%) and turnaround speed (79.4%) represent SYNLAB's strongest competitive moats.<br><br>
-        <strong>Diagnostic Precision:</strong> 73.8% of patients consider SYNLAB superior in accuracy.<br><br>
-        <strong>Defensive Focus:</strong> Pricing & Value (59.8%) is the only parameter below 65%, highlighting out-of-pocket sensitivity against local clinics.
+        <strong>Clinical Benchmark:</strong> Staff professionalism and turnaround speed represent SYNLAB's strongest competitive moats.<br><br>
+        <strong>Diagnostic Precision:</strong> Over 73% of patients consider SYNLAB superior in accuracy.<br><br>
+        <strong>Defensive Focus:</strong> Pricing & Value is the only parameter below 65%, highlighting out-of-pocket sensitivity against local clinics.
     </div>
     """,
         unsafe_allow_html=True,
@@ -567,7 +560,7 @@ st.markdown("</div>", unsafe_allow_html=True)
 # ===== 5. COMPETITOR SWITCHING INFLOW / WIN-RATE MATRIX =====
 st.markdown("<div style='margin-top: 14px;'></div>", unsafe_allow_html=True)
 st.markdown(
-    """<h4 style="color: #003765; margin: 0 0 12px 0;">Laboratory Switching Dynamics & Competitor Inflow</h4>""",
+    """<h4 style="color: #003765; margin: 0 0 12px 0;'>Laboratory Switching Dynamics & Competitor Inflow</h4>""",
     unsafe_allow_html=True,
 )
 
@@ -576,48 +569,55 @@ col_sw1, col_sw2 = st.columns([1.5, 1.0])
 with col_sw1:
     st.markdown('<div class="chart-container">', unsafe_allow_html=True)
     st.markdown(
-        """<h4 style="color: #003765; margin: 0 0 6px 0;">Where Patients are Leaving Other Labs</h4>""",
+        """<h4 style="color: #003765; margin: 0 0 6px 0;">Where Patients are Leaving Other Labs (Question 16)</h4>""",
         unsafe_allow_html=True,
     )
 
-    inflow_df = pd.DataFrame({
-        "Driver": [
-            "Doctor / HMO Reassignment",
-            "Pricing / High Cost at Previous Lab",
-            "Inconvenient Location / Distance",
-            "Inaccurate Results / Quality Deficit",
-            "Poor Customer Service / Long Wait",
-        ],
-        "Switch_Volume": [102, 78, 65, 54, 43],
-        "Opportunity_Rate": [22.2, 17.0, 14.1, 11.7, 9.3],
-    }).sort_values("Switch_Volume", ascending=True)
+    switch_cols_map = {
+        '16. Have you ever switched labs, and if so why?/My doctor or HMO recommended a different laboratory': 'Doctor / HMO Reassigned',
+        '16. Have you ever switched labs, and if so why?/The previous laboratory was too expensive': 'Pricing / High Cost at Previous Lab',
+        '16. Have you ever switched labs, and if so why?/The previous laboratory was inconvenient to access': 'Inconvenient Location / Distance',
+        '16. Have you ever switched labs, and if so why?/I was dissatisfied with the quality or accuracy of results': 'Inaccurate Results / Quality Deficit',
+        '16. Have you ever switched labs, and if so why?/I was dissatisfied with the customer service': 'Poor Customer Service / Long Wait',
+    }
 
-    fig_inflow = px.bar(
-        inflow_df,
-        x="Switch_Volume",
-        y="Driver",
-        orientation="h",
-        color="Switch_Volume",
-        color_continuous_scale=["#5BA3D0", "#003765"],
-        text=[f"{v} ({p}%)" for v, p in zip(inflow_df["Switch_Volume"], inflow_df["Opportunity_Rate"])],
-    )
-    fig_inflow.update_traces(
-        textposition="outside",
-        textfont=dict(color="#003765", size=11),
-        cliponaxis=False,
-    )
-    fig_inflow.update_layout(
-        plot_bgcolor="rgba(0,0,0,0)",
-        paper_bgcolor="rgba(0,0,0,0)",
-        font_color="#003765",
-        xaxis_title="Patients Citing Factor",
-        yaxis_title="",
-        yaxis=dict(tickfont=dict(color="#003765", size=11)),
-        showlegend=False,
-        height=280,
-        margin=dict(l=190, r=50, t=10, b=10),
-    )
-    st.plotly_chart(fig_inflow, use_container_width=True)
+    inflow_data = []
+    valid_switch = data['16. Have you ever switched labs, and if so why?'].notna().sum() if '16. Have you ever switched labs, and if so why?' in data.columns else total
+    for c_name, title in switch_cols_map.items():
+        if c_name in data.columns:
+            cnt = int(data[c_name].sum())
+            pct = round(cnt / valid_switch * 100, 1) if valid_switch > 0 else 0
+            inflow_data.append({"Driver": title, "Switch_Volume": cnt, "Opportunity_Rate": pct})
+
+    if inflow_data:
+        inflow_df = pd.DataFrame(inflow_data).sort_values("Switch_Volume", ascending=True)
+
+        fig_inflow = px.bar(
+            inflow_df,
+            x="Switch_Volume",
+            y="Driver",
+            orientation="h",
+            color="Switch_Volume",
+            color_continuous_scale=["#5BA3D0", "#003765"],
+            text=[f"{v} ({p}%)" for v, p in zip(inflow_df["Switch_Volume"], inflow_df["Opportunity_Rate"])],
+        )
+        fig_inflow.update_traces(
+            textposition="outside",
+            textfont=dict(color="#003765", size=11),
+            cliponaxis=False,
+        )
+        fig_inflow.update_layout(
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
+            font_color="#003765",
+            xaxis_title="Patients Citing Factor",
+            yaxis_title="",
+            yaxis=dict(tickfont=dict(color="#003765", size=11)),
+            showlegend=False,
+            height=280,
+            margin=dict(l=190, r=50, t=10, b=10),
+        )
+        st.plotly_chart(fig_inflow, use_container_width=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
 with col_sw2:
@@ -629,8 +629,8 @@ with col_sw2:
     st.markdown(
         """
     <div style="padding: 12px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 12px; color: #334155; line-height: 1.7;">
-        <strong>Clinical Reassignment (22.2%):</strong> Primary driver of market movement. Doctors migrating away from standalone clinics direct patients to SYNLAB when hospital panels fail.<br><br>
-        <strong>Quality Friction (11.7%):</strong> 54 patients left rivals due to inaccurate results, creating an acquisition wedge for SYNLAB's international accreditation.
+        <strong>Clinical Reassignment:</strong> Primary driver of market movement. Doctors migrating away from standalone clinics direct patients to SYNLAB when hospital panels fail.<br><br>
+        <strong>Quality Deficits:</strong> Significant volume of patients leave competitors due to inaccurate results, creating a reliable acquisition wedge for SYNLAB's ISO accreditation.
     </div>
     """,
         unsafe_allow_html=True,
@@ -648,16 +648,16 @@ with col_t1:
         """
     <div class="threat-card">
         <div>
-            <div class="comp-tag">Threat #1 · Doctor Referrals</div>
-            <div class="comp-name">Lifebridge Medical</div>
-            <div class="comp-score">Threat Score: 11.6</div>
-            <div class="comp-stats">12.0% Usage · 11.0% Awareness · 109.1% Conversion</div>
+            <div class="comp-tag">Threat #1 · Digital Convenience</div>
+            <div class="comp-name">E-Clinic Diagnostics</div>
+            <div class="comp-score">Threat Score: 11.1</div>
+            <div class="comp-stats">9.2% Usage · 14.0% Awareness · 65.6% Conversion</div>
             <div class="comp-desc">
-                Commands the second highest usage share in Abuja (12.0%). Demonstrates high conversion efficiency driven by established doctor referral loops across private hospitals.
+                Commands the highest brand awareness among all non-SYNLAB competitors (14.0%). Streamlined online booking and rapid portal results appeal to tech-enabled patients.
             </div>
         </div>
         <div style="margin-top: 14px; padding: 10px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 6px; font-size: 11px; color: #003765;">
-            <strong>Counter-Strategy:</strong> Deepen physician relations, corporate HMO retention, and B2B clinical partnerships in central Abuja corridors.
+            <strong>Counter-Strategy:</strong> Upgrade SYNLAB's digital patient portal, enable automated WhatsApp delivery, and promote mobile scheduling.
         </div>
     </div>
     """,
@@ -669,16 +669,16 @@ with col_t2:
         """
     <div class="threat-card">
         <div>
-            <div class="comp-tag">Threat #2 · Digital Convenience</div>
-            <div class="comp-name">E-Clinic Diagnostics</div>
-            <div class="comp-score">Threat Score: 11.5</div>
-            <div class="comp-stats">9.4% Usage · 14.7% Awareness · 64.4% Conversion</div>
+            <div class="comp-tag">Threat #2 · Doctor Referrals</div>
+            <div class="comp-name">Lifebridge Medical</div>
+            <div class="comp-score">Threat Score: 8.6</div>
+            <div class="comp-stats">7.9% Usage · 9.6% Awareness · 81.8% Conversion</div>
             <div class="comp-desc">
-                Commands the highest brand awareness among all non-SYNLAB competitors (14.7%). Streamlined online booking and rapid portal results appeal to tech-enabled patients.
+                Demonstrates high conversion efficiency driven by established doctor referral loops and specialist networks across private healthcare facilities in central Abuja.
             </div>
         </div>
         <div style="margin-top: 14px; padding: 10px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 6px; font-size: 11px; color: #003765;">
-            <strong>Counter-Strategy:</strong> Upgrade SYNLAB's digital patient portal, enable automated WhatsApp delivery, and promote mobile scheduling.
+            <strong>Counter-Strategy:</strong> Deepen physician relations, corporate HMO retention, and B2B clinical partnerships in central Abuja corridors.
         </div>
     </div>
     """,
@@ -692,8 +692,8 @@ with col_t3:
         <div>
             <div class="comp-tag">Threat #3 · Screening Packages</div>
             <div class="comp-name">Mecure Healthcare</div>
-            <div class="comp-score">Threat Score: 7.8</div>
-            <div class="comp-stats">6.0% Usage · 10.6% Awareness · 56.6% Conversion</div>
+            <div class="comp-score">Threat Score: 8.2</div>
+            <div class="comp-stats">6.1% Usage · 11.4% Awareness · 53.8% Conversion</div>
             <div class="comp-desc">
                 Competes directly on bundled wellness packages and routine checkups, drawing away price-sensitive out-of-pocket individuals.
             </div>
@@ -716,16 +716,16 @@ st.markdown(
     <div class="swot-card swot-strengths">
         <h4>Strengths</h4>
         <ul>
-            <li>Dominant metropolitan usage leader at 42.0% (209 active patients)</li>
-            <li>Highest market awareness across Abuja (54.0%)</li>
-            <li>Strong awareness-to-usage conversion rate (77.7%)</li>
-            <li>Benchmark clinical reputation: 81.4% rate staff professionalism superior</li>
+            <li>Dominant metropolitan usage leader at 40.4% (92 active customers)</li>
+            <li>Highest market awareness across Abuja (54.4%)</li>
+            <li>Strong awareness-to-usage conversion rate (74.2%)</li>
+            <li>Benchmark clinical reputation: Staff professionalism and accuracy lead touchpoints</li>
         </ul>
     </div>
     <div class="swot-card swot-weaknesses">
         <h4>Weaknesses</h4>
         <ul>
-            <li>Price sensitivity among self-paying patients (59.8% rate value superior)</li>
+            <li>Price sensitivity among self-paying patients on routine tests</li>
             <li>Digital portal adoption lags pure-play tech diagnostic centers</li>
             <li>Sample collection wait times during peak morning hours</li>
             <li>Lower spontaneous recall in peripheral suburban corridors</li>
@@ -734,7 +734,7 @@ st.markdown(
     <div class="swot-card swot-opportunities">
         <h4>Opportunities</h4>
         <ul>
-            <li>60 conversion-ready aware prospects (12.0% awareness-usage gap)</li>
+            <li>32 conversion-ready aware prospects (14.0% awareness-usage gap)</li>
             <li>Modular wellness screening packages priced under ₦50,000</li>
             <li>Automated WhatsApp and mobile results delivery integration</li>
             <li>Targeted physician referral programs in Wuse, Gwarimpa, and Gwagwalada</li>

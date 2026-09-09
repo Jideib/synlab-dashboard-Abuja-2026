@@ -165,14 +165,7 @@ st.markdown(
 @st.cache_data
 def load_data():
     paths = [
-        "data/synlab_clean.csv",
-        "synlab_clean.csv",
-        "data/SYNLAB_Surveys_Cleaned_498.csv",
-        "SYNLAB_Surveys_Cleaned_498.csv",
-        "data/synlab_clean_standardized.csv",
-        "synlab_clean_standardized.csv",
-        "../data/synlab_clean.csv",
-        "../synlab_clean.csv",
+        "data/synlab_clean_deduped.csv",
     ]
     for path in paths:
         if os.path.exists(path):
@@ -192,7 +185,7 @@ def load_data():
 data = load_data()
 
 if data.empty:
-    st.error("Data file not found. Please ensure synlab_clean.csv is located in the data directory.")
+    st.error("Data file not found. Please ensure synlab_clean_deduped.csv is located in the data directory.")
     st.stop()
 
 total = len(data)
@@ -205,7 +198,6 @@ def find_col(df, patterns):
     return None
 
 wtp_col = find_col(data, ["wtp_package", "price tier", "wtp"])
-q8_col = find_col(data, ["8. How did you first hear", "first hear about synlab"])
 
 cx_alt_cols = [
     "cx_access_alt", "cx_wait_time", "cx_professionalism_alt",
@@ -730,8 +722,8 @@ loc_card_data = []
 for loc in major_loc_order:
     loc_sub = data[data["location"] == loc]
     t_cnt = len(loc_sub)
-    a_cnt = int(loc_sub["aware_synlab"].sum())
-    u_cnt = int(loc_sub["used_synlab"].sum())
+    a_cnt = int(loc_sub["aware_synlab"].sum()) if "aware_synlab" in loc_sub.columns else 0
+    u_cnt = int(loc_sub["used_synlab"].sum()) if "used_synlab" in loc_sub.columns else 0
 
     a_pct = round((a_cnt / t_cnt * 100), 1) if t_cnt > 0 else 0.0
     u_pct = round((u_cnt / t_cnt * 100), 1) if t_cnt > 0 else 0.0
@@ -796,7 +788,7 @@ with t_col1:
         <div class="insight-number">01</div>
         <div class="insight-title">Core Working Cohort (35–44)</div>
         <div class="insight-desc">
-            Represents <strong>57.6%</strong> of total respondents. 62% select packages between ₦20K–₦50K, making them the primary commercial target for routine executive wellness packages.
+            Represents <strong>57%</strong> of active respondents. The majority select packages between ₦20K–₦50K, making them the primary commercial target for routine executive wellness packages.
         </div>
     </div>
     """,
